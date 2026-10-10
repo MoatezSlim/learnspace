@@ -4,7 +4,7 @@ Plateforme d’apprentissage en ligne (prototype fonctionnel) construite à part
 
 **En ligne : https://moatezslim.github.io/learnspace/**
 
-Le site est publié par GitHub Pages à chaque envoi sur `main` (workflow `.github/workflows/deploy.yml` : installation, vérification TypeScript, compilation, publication de `dist-site/`). Sur ce site, la progression est enregistrée dans le navigateur et Léa répond avec ses réponses préparées ; les réponses en direct et la synchronisation entre appareils demandent un hébergement qui fournit ces services (voir « Réponses » et « Persistance » ci-dessous).
+Le site est republié à chaque envoi sur `main` : le workflow `.github/workflows/deploy.yml` installe, vérifie le TypeScript, compile, puis place `dist-site/` sur la branche `gh-pages`, que GitHub Pages sert. Sur ce site, la progression est enregistrée dans le navigateur et Léa répond avec ses réponses préparées ; les réponses en direct et la synchronisation entre appareils demandent un hébergement qui fournit ces services (voir « Réponses » et « Persistance » ci-dessous).
 
 ## Ce qui fonctionne
 
