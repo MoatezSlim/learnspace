@@ -1,0 +1,94 @@
+/* ------------------------------------------------------------- chat with Léa (desktop): the page fills the window */
+.app.page-messages.is-desktop .main { height: 100vh; padding-bottom: 16px; }
+.app.page-messages.is-desktop .content { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.chat-page { flex: 1; min-height: 0; gap: 20px; }
+.chat-head h1 { font-size: 40px; }
+.chat-head .lead { margin-top: 8px; }
+.chat-head-actions { display: flex; align-items: center; gap: 10px; }
+.history-pop { width: 340px; }
+.history-pop button { width: 100%; }
+.history-pop button span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: left; }
+.history-pop button small { color: var(--ink-3); font-size: 12.5px; font-weight: 600; white-space: nowrap; }
+.chat-card { flex: 1; min-height: 0; display: flex; flex-direction: column; padding: 0; overflow: hidden; border-radius: 26px; }
+.chat-notice { display: flex; align-items: center; gap: 8px; margin: 16px 22px 0; padding: 10px 14px; border-radius: 12px; background: var(--gold-50); color: var(--gold-ink); font-size: 13.5px; font-weight: 600; }
+.chat-list { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 20px; padding: 28px 30px 16px; scrollbar-width: thin; scrollbar-color: rgba(16, 32, 59, .18) transparent; }
+.chat-empty { margin: auto; display: flex; flex-direction: column; align-items: center; gap: 10px; max-width: 380px; text-align: center; color: var(--ink-2); }
+.chat-empty svg { width: 52px; height: 52px; padding: 14px; border-radius: 16px; background: var(--blue-50); color: var(--blue); }
+
+/* messages */
+.msg { display: flex; align-items: flex-end; gap: 12px; max-width: min(780px, 88%); animation: msg-in .35s var(--ease) both; }
+@keyframes msg-in { from { opacity: 0; transform: translateY(8px); } }
+.msg-me { align-self: flex-end; flex-direction: row-reverse; }
+.msg-face { width: 40px; height: 40px; margin-bottom: 24px; box-shadow: 0 0 0 2.5px #fff, 0 6px 14px -6px rgba(10, 31, 60, .45); background: linear-gradient(160deg, #DCE7FF, #FFF1E6); }
+.msg-col { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.msg-me .msg-col { align-items: flex-end; }
+.msg-bubble { display: flex; flex-direction: column; gap: 8px; padding: 13px 17px; border-radius: 22px 22px 22px 6px; background: var(--mist); color: var(--ink); font-size: 15px; line-height: 1.55; overflow-wrap: anywhere; }
+.msg-bubble p strong { font-weight: 750; }
+.msg-me .msg-bubble { border-radius: 22px 22px 6px 22px; background: linear-gradient(180deg, #3D7BFF, #2457E6); color: #fff; box-shadow: 0 14px 24px -16px rgba(47, 107, 255, .95); }
+.msg-bubble.is-typing { padding: 10px 16px; }
+.msg-error .msg-bubble { background: var(--coral-50); color: #9E2F29; }
+.msg-meta { display: inline-flex; align-items: center; gap: 4px; padding: 0 6px; font: 600 12px var(--ui); color: var(--ink-3); }
+.msg-me .msg-meta svg { color: var(--blue); }
+.msg-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
+.msg-actions .btn { height: 36px; }
+
+/* cards inside Léa's messages */
+.msg-card { display: flex; flex-direction: column; gap: 12px; width: min(440px, 100%); margin-top: 2px; padding: 14px 16px; border-radius: 16px; background: #fff; color: var(--ink); text-align: left;
+  box-shadow: 0 1px 2px rgba(10, 31, 60, .06), 0 10px 22px -16px rgba(10, 31, 60, .4); transition: box-shadow .2s; }
+button.msg-card:hover { box-shadow: inset 0 0 0 1.5px var(--blue-200), 0 10px 22px -16px rgba(47, 107, 255, .6); }
+.mcc-top { display: flex; align-items: center; gap: 12px; }
+.mcc-top .flag { flex: none; }
+.mcc-title { display: flex; flex-direction: column; flex: 1; min-width: 0; }
+.mcc-title strong { font-size: 14.5px; font-weight: 700; }
+.mcc-title small { font-size: 12.5px; color: var(--ink-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mcc-pct { font-size: 21px; color: var(--blue-700); }
+.mcc-bars { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 5px; }
+.mcc-bars i { display: block; height: 6px; border-radius: 99px; background: var(--mist-2); overflow: hidden; }
+.mcc-bars i b { display: block; height: 100%; border-radius: inherit; background: var(--blue); }
+.mcc-bars i.done b { background: var(--mint); }
+.mc-words { gap: 0; padding: 4px 16px; }
+.mcw-row { display: grid; grid-template-columns: 92px minmax(0, 1fr); gap: 14px; align-items: baseline; padding: 11px 0; }
+.mcw-row + .mcw-row { border-top: 1px solid var(--line); }
+.mcw-row > strong { font: 750 16px var(--display); color: var(--blue-700); letter-spacing: -0.01em; }
+.mcw-row > span { display: flex; flex-direction: column; gap: 1px; font-size: 14px; color: var(--ink); }
+.mcw-row small { font-size: 12.5px; color: var(--ink-3); }
+.mc-lesson { flex-direction: row; align-items: center; gap: 10px; }
+.mc-lesson svg { width: 30px; height: 30px; padding: 8px; border-radius: 50%; background: var(--blue); color: #fff; flex: none; }
+.mc-lesson strong { flex: 1; min-width: 0; font-size: 14.5px; }
+.mc-lesson small { color: var(--ink-3); font-size: 12.5px; white-space: nowrap; }
+
+/* suggestions and the composer */
+.chat-chips { display: flex; flex-wrap: wrap; gap: 8px; padding: 6px 30px 12px; }
+.chat-composer { position: relative; display: flex; align-items: flex-end; gap: 8px; margin: 0 22px 22px; padding: 8px; border-radius: 20px; background: var(--mist); box-shadow: inset 0 0 0 1px var(--line); transition: box-shadow .2s, background .2s; }
+.chat-composer:focus-within { background: #fff; box-shadow: inset 0 0 0 1.5px var(--blue), 0 0 0 4px rgba(47, 107, 255, .1); }
+.chat-composer textarea { flex: 1; min-width: 0; min-height: 44px; max-height: 150px; padding: 11px 6px; border: 0; background: transparent; resize: none; font-weight: 550; line-height: 1.45; color: var(--ink); outline: none; field-sizing: content; }
+.chat-composer textarea::placeholder { color: var(--ink-3); }
+.cc-plus { width: 44px; height: 44px; border-radius: 14px; display: grid; place-items: center; background: #fff; color: var(--ink-2); box-shadow: 0 1px 2px rgba(10, 31, 60, .08), 0 6px 14px -8px rgba(10, 31, 60, .3); transition: color .2s, transform .2s var(--ease); }
+.cc-plus:hover, .cc-plus[aria-expanded='true'] { color: var(--blue); }
+.cc-plus[aria-expanded='true'] svg { transform: rotate(45deg); }
+.cc-plus svg { transition: transform .25s var(--ease); }
+.cc-menu { left: 0; right: auto; top: auto; bottom: calc(100% + 12px); width: 380px; }
+.cc-menu button { height: auto; min-height: 40px; padding: 8px 10px; text-align: left; line-height: 1.35; }
+.cc-menu button svg { color: var(--blue); flex: none; }
+.cc-mic { width: 44px; height: 44px; border-radius: 14px; display: grid; place-items: center; color: var(--ink-2); flex: none; transition: background .2s, color .2s; }
+.cc-mic:hover, .cc-mic.is-on { background: #fff; color: var(--coral); }
+.cc-mic.is-on { box-shadow: 0 0 0 3px rgba(233, 86, 79, .18); }
+.cc-send { height: 44px; min-width: 44px; padding: 0 18px; border-radius: 14px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; flex: none; color: #fff; font: 650 14.5px var(--ui);
+  background: linear-gradient(180deg, #3D7BFF, #2457E6); box-shadow: 0 10px 18px -10px rgba(47, 107, 255, .95); transition: opacity .2s, transform .15s var(--ease); }
+.cc-send:disabled { opacity: .55; }
+.cc-send:not(:disabled):hover { transform: translateY(-1px); }
+
+/* Léa's panel on the chat page */
+.threads { display: flex; flex-direction: column; gap: 4px; }
+.threads button { display: flex; align-items: center; gap: 10px; width: 100%; padding: 10px 12px; border-radius: 12px; text-align: left; font-size: 14px; font-weight: 600; color: var(--ink); transition: background .2s; }
+.threads button:hover { background: var(--mist); }
+.threads button svg { color: var(--ink-3); flex: none; }
+.threads button span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.threads small { font-size: 12.5px; color: var(--ink-3); white-space: nowrap; }
+.badge-tease { display: flex; align-items: center; gap: 14px; width: 100%; padding: 14px; border-radius: 18px; text-align: left; background: linear-gradient(140deg, #FFF3DA, #FFF8EC); box-shadow: inset 0 0 0 1px rgba(239, 169, 42, .25); transition: transform .2s var(--ease); }
+.badge-tease:hover { transform: translateY(-1px); }
+.bt-medal { width: 46px; height: 46px; border-radius: 14px; display: grid; place-items: center; flex: none; color: #fff; background: linear-gradient(145deg, #FFD46B, #EFA92A); box-shadow: 0 10px 18px -10px rgba(239, 169, 42, .95); }
+.badge-tease > span:last-child { display: flex; flex-direction: column; gap: 3px; flex: 1; min-width: 0; }
+.badge-tease strong { font-size: 14px; font-weight: 700; }
+.badge-tease small { font-size: 12.5px; color: var(--gold-ink); font-weight: 600; }
+.badge-tease .bar { margin-top: 5px; background: rgba(239, 169, 42, .18); }

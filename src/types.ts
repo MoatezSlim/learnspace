@@ -8,12 +8,15 @@ export type LessonKind = 'audio' | 'video' | 'reading' | 'practice' | 'assessmen
 
 export interface Choice { id: string; text: string }
 
+/** `fr`: French translation of the prompt (questions written in another language) */
 export type Question =
-  | { type: 'mcq'; id: string; prompt: string; choices: Choice[]; answer: string; hint: string; explanation: string }
-  | { type: 'tf'; id: string; prompt: string; answer: boolean; hint: string; explanation: string }
-  | { type: 'short'; id: string; prompt: string; accept: string[]; keywords?: string[]; placeholder?: string; hint: string; explanation: string; display: string };
+  | { type: 'mcq'; id: string; prompt: string; choices: Choice[]; answer: string; hint: string; explanation: string; fr?: string }
+  | { type: 'tf'; id: string; prompt: string; answer: boolean; hint: string; explanation: string; fr?: string }
+  | { type: 'short'; id: string; prompt: string; accept: string[]; keywords?: string[]; placeholder?: string; hint: string; explanation: string; display: string; fr?: string };
 
-export interface DialogueLine { speaker: string; voice: 'a' | 'b'; text: string }
+export interface DialogueLine { speaker: string; voice: 'a' | 'b'; text: string; /** French translation shown under the line */ fr?: string }
+/** A word or expression taught by a lesson */
+export interface VocabItem { term: string; fr: string; ex?: string }
 
 export interface LessonContent {
   /** Activity heading shown above the instructions, e.g. "Listen and answer" */
@@ -29,6 +32,8 @@ export interface LessonContent {
   reading?: { title: string; paragraphs: string[]; source?: string };
   /** Key notions the assistant can explain or summarise */
   keyPoints: string[];
+  /** Words and expressions of the lesson (vocabulary card, word of the day) */
+  vocab?: VocabItem[];
 }
 
 export interface Lesson {
@@ -66,6 +71,10 @@ export interface Course {
   popularity: number;
   cover: Cover;
   modules: Module[];
+  /** What the learner will be able to do at the end */
+  outcomes?: string[];
+  /** catalogue badge */
+  tag?: 'new';
 }
 
 export interface AnswerRecord {
@@ -96,14 +105,26 @@ export interface ChatMessage {
   at: string;
   source?: 'live' | 'demo' | 'system';
   actions?: AssistantAction[];
+  /** rich content under Léa's answer */
+  card?: ChatCard;
   error?: boolean;
 }
 
+export type ChatCard =
+  | { kind: 'course'; courseId: string }
+  | { kind: 'words'; items: { term: string; ex: string; fr: string }[] }
+  | { kind: 'lesson'; lessonId: string };
+
+/** An earlier conversation with Léa, kept when a new one starts */
+export interface ChatThread { id: string; title: string; at: string; messages: ChatMessage[] }
+
 export type AssistantAction =
   | { kind: 'lesson'; lessonId: string; label: string }
-  | { kind: 'page'; page: PageId; label: string }
+  | { kind: 'page'; page: PageId; label: string; courseId?: string }
   | { kind: 'ask'; text: string; label: string }
-  | { kind: 'open'; target: 'newCourse' | 'payment'; label: string };
+  | { kind: 'open'; target: 'newCourse' | 'payment'; label: string }
+  | { kind: 'pause'; courseId: string; label: string }
+  | { kind: 'remind'; at: string; title: string; label: string };
 
 export interface AppNotification { id: string; at: string; title: string; body: string; read: boolean; kind: 'badge' | 'lesson' | 'streak' | 'info' | 'payment' }
 
@@ -115,29 +136,49 @@ export type PlanId = 'monthly' | 'yearly';
 export interface Invoice { id: string; at: string; amount: number; plan: PlanId; from: string; to: string; method: string }
 export interface Subscription { plan: PlanId; startedAt: string; paidUntil: string; invoices: Invoice[] }
 
+export type CoachStyle = 'encourage' | 'strict' | 'discreet';
 export interface Prefs {
   voice: boolean;
   voiceURI: string;
   rate: number;
-  motion: 'system' | 'reduced' | 'full';
+  /** Léa's animations: system setting, full, reduced (no head moves, text shown at once) or none (still picture) */
+  motion: 'system' | 'reduced' | 'full' | 'none';
   aiMode: 'live' | 'demo';
   /** desktop sidebar: full width or icons only */
   sidebar?: 'full' | 'rail';
+  /** desktop: Léa in a panel on the right, or in a floating bubble */
+  dock?: 'panel' | 'bubble';
+  /** how Léa talks to the learner */
+  coach?: CoachStyle;
+  /** show French translations (lesson transcripts, Léa's word cards) */
+  translate?: boolean;
+  /** in-app reminders */
+  notify?: { daily: boolean; weekly: boolean; newCourses: boolean };
+  /** last time the learner opened the conversation (unread count in the menu) */
+  chatSeenAt?: string;
 }
+
+/** A reminder the learner asked for; it becomes a notification on its day */
+export interface Reminder { id: string; at: string; title: string; body: string }
 
 export interface LearnerState {
   version: 1 | 2;
-  profile: { firstName: string; lastName: string; dailyGoalMin: number; photo?: ProfilePhoto };
+  profile: { firstName: string; lastName: string; dailyGoalMin: number; photo?: ProfilePhoto; /** what the learner wants to achieve, in their words */ goal?: string };
   prefs: Prefs;
   currentCourseId: string;
-  enrollments: Record<string, { enrolledAt: string; lastActiveAt: string }>;
+  enrollments: Record<string, { enrolledAt: string; lastActiveAt: string; paused?: boolean }>;
   completions: Record<string, Completion>;
   attempts: Record<string, LessonAttempt>;
   answerLog: AnswerRecord[];
   activity: Record<string, number>; // 'YYYY-MM-DD' -> minutes
   achievements: Record<string, string>; // id -> earnedAt
   conversation: ChatMessage[];
+  /** earlier conversations */
+  chats?: ChatThread[];
   assistantQuestions: number;
+  reminders?: Reminder[];
+  /** keys of automatic notifications already sent (daily reminder, weekly summary) */
+  sentNotes?: string[];
   notifications: AppNotification[];
   subscription: Subscription;
   seededAt: string;

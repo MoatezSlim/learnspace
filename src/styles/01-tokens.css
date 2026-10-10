@@ -1,0 +1,22 @@
+:root {
+  color-scheme: light;
+  --navy-950: #061630; --navy-900: #0A1F3C; --navy-800: #0F2B52; --navy-700: #17396A; --navy-600: #2A4D80;
+  --blue: #2F6BFF; --blue-700: #1F55E0; --blue-400: #6E97FF; --blue-200: #C9D9FF; --blue-100: #E2EBFF; --blue-50: #F0F5FF;
+  --mist: #F2F5FA; --mist-2: #E9EEF6; --line: #E2E8F2; --line-2: #D3DCEA;
+  --ink: #10203B; --ink-2: #47587A; --ink-3: #7B89A2;
+  --mint: #16A472; --mint-50: #E5F6EF; --mint-100: #CFEFE1;
+  --flame: #FF7A2F; --flame-50: #FFF0E6;
+  --coral: #E9564F; --coral-50: #FDEBEA;
+  --gold: #EFA92A; --gold-50: #FFF5DF; --gold-ink: #A76A06;
+  --violet: #6E63F2; --violet-50: #EFEDFE;
+  --ring-track: #E4EBF6;
+  --r-xl: 28px; --r-lg: 20px; --r-md: 14px; --r-sm: 10px;
+  --sh-1: 0 1px 2px rgba(10, 31, 60, .05), 0 10px 28px -12px rgba(10, 31, 60, .16);
+  --sh-2: 0 2px 8px rgba(10, 31, 60, .07), 0 30px 60px -24px rgba(10, 31, 60, .32);
+  --sh-3: 0 4px 14px rgba(10, 31, 60, .08), 0 40px 80px -30px rgba(10, 31, 60, .4);
+  --display: 'Bricolage Grotesque', 'Figtree', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --ui: 'Figtree', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --ease: cubic-bezier(.32, .72, 0, 1);
+  --side-full: 268px; --side-rail: 88px;
+  --rail-w: clamp(352px, 21.5vw, 408px);
+}

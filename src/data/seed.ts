@@ -2,7 +2,7 @@
 // first launch so the dashboard always shows a living streak. All figures shown in the app
 // are computed from this history plus what the learner actually does.
 import { seedSubscription } from './plans';
-import type { LearnerState, Completion, ChatMessage, AppNotification } from '../types';
+import type { LearnerState, Completion, ChatMessage, ChatThread, AppNotification } from '../types';
 import { COURSES, courseLessons, getCourse } from './courses';
 import { addDays, dayKey } from '../lib/dates';
 
@@ -43,10 +43,12 @@ export function createSeedState(now = new Date()): LearnerState {
   // ---- Other languages: earlier progress ----
   const progressCounts: Record<string, number> = { 'es-a2': 11, 'fr-b1': 16, 'de-a1': 8, 'it-b1': 11, 'ru-c1': 7 };
   const firstDays: Record<string, number> = { 'es-a2': -58, 'fr-b1': -60, 'de-a1': -52, 'it-b1': -56, 'ru-c1': -50 };
+  // spacing between lessons: some languages are still active, German has been left aside for a month
+  const spacing: Record<string, number> = { 'es-a2': 4.2, 'fr-b1': 2.6, 'de-a1': 2.6, 'it-b1': 4, 'ru-c1': 3.6 };
   for (const [cid, n] of Object.entries(progressCounts)) {
     const c = getCourse(cid)!;
     courseLessons(c).slice(0, n).forEach((l, i) => {
-      const day = Math.min(-8, firstDays[cid] + Math.floor(i * 2.6));
+      const day = Math.min(-8, firstDays[cid] + Math.floor(i * spacing[cid]));
       const d = at(now, day === -5 ? -6 : day, 12 + (i % 6), 5 + i);
       const total = 3, score = r() > 0.25 ? 3 : 2;
       completions[l.id] = { at: d.toISOString(), score, total, minutes: l.minutes, passed: true };
@@ -85,15 +87,51 @@ export function createSeedState(now = new Date()): LearnerState {
     if (done.length) enrollments[c.id] = { enrolledAt: done[0], lastActiveAt: done[done.length - 1] };
   }
 
-  const yesterday1024 = at(now, -1, 10, 24);
+  // ---- Conversation with Léa: a short exchange earlier today (minutes before "now", so it is never
+  // in the future), and three earlier conversations kept in the history.
+  const minsAgo = (min: number) => iso(new Date(now.getTime() - min * 60e3));
+  const enAssess = en.modules.slice(0, 3).map((m) => m.lessons[m.lessons.length - 1]).map((l) => completions[l.id]);
+  const assessPct = Math.round((enAssess.reduce((a, c) => a + c.score, 0) / enAssess.reduce((a, c) => a + c.total, 0)) * 100);
+  const enDone = courseLessons(en).filter((l) => completions[l.id]?.passed).length;
+  const m4Left = m4.lessons.filter((l) => !completions[l.id] && l.kind !== 'assessment').length;
+  const next = m4.lessons.find((l) => !completions[l.id])!;
   const conversation: ChatMessage[] = [
-    {
-      id: 'seed-1', role: 'assistant', source: 'demo', at: iso(new Date(yesterday1024.getTime() - 2 * 60e3)),
-      text: 'Tu es sur la bonne voie ! Je te conseille de faire une pause, puis de revoir la leçon sur les verbes irréguliers. 💡',
-      actions: [{ kind: 'lesson', lessonId: 'en-b1-review-irregular', label: 'Ouvrir la révision express' }],
-    },
-    { id: 'seed-2', role: 'user', at: iso(yesterday1024), text: 'Merci ! Ça fait vraiment plaisir d’avoir un accompagnement comme ça. 😊' },
-    { id: 'seed-3', role: 'assistant', source: 'demo', at: iso(new Date(yesterday1024.getTime() + 30e3)), text: 'Avec plaisir ! Si tu as des questions, je suis là pour t’aider à tout moment. Tu assures ! 💪' },
+    { id: 'seed-1', role: 'assistant', source: 'demo', at: minsAgo(52),
+      text: `Bonjour ${'Alex'} ! Ton objectif du jour est atteint. On continue avec **« ${next.title} »** ?` },
+    { id: 'seed-2', role: 'user', at: minsAgo(34), text: 'Où en suis-je dans mon parcours d’anglais ?' },
+    { id: 'seed-3', role: 'assistant', source: 'demo', at: minsAgo(33.6),
+      text: `Tu as terminé **${enDone} leçons sur ${courseLessons(en).length}**. Les modules 1 à 3 sont validés, avec ${assessPct} % de bonnes réponses aux évaluations. Il te reste ${m4Left} leçon${m4Left > 1 ? 's' : ''} dans le module 4, puis son évaluation.`,
+      card: { kind: 'course', courseId: 'en-b1' },
+      actions: [{ kind: 'lesson', lessonId: next.id, label: 'Continuer la leçon' }, { kind: 'page', page: 'course', courseId: 'en-b1', label: 'Voir le parcours' }] },
+    { id: 'seed-4', role: 'user', at: minsAgo(31), text: 'Quelle est la différence entre « journey » et « trip » ?' },
+    { id: 'seed-5', role: 'assistant', source: 'demo', at: minsAgo(30.6),
+      text: '**Trip** désigne le voyage dans son ensemble : le départ, le séjour et le retour. **Journey** désigne le trajet lui-même, le temps passé à se déplacer.',
+      card: { kind: 'words', items: [
+        { term: 'trip', ex: 'How was your trip to Edinburgh?', fr: 'Comment s’est passé ton voyage à Édimbourg ?' },
+        { term: 'journey', ex: 'The journey takes four and a half hours.', fr: 'Le trajet dure quatre heures et demie.' },
+      ] } },
+  ];
+  const thread = (id: string, title: string, day: number, hour: number, lines: [ChatMessage['role'], string][]): ChatThread => {
+    const start = at(now, day, hour, 12);
+    return { id, title, at: iso(start), messages: lines.map(([role, text], i) => ({ id: `${id}-${i}`, role, text, at: iso(new Date(start.getTime() + i * 50e3)), ...(role === 'assistant' ? { source: 'demo' as const } : {}) })) };
+  };
+  const chats: ChatThread[] = [
+    thread('seed-t1', 'Le present perfect', -1, 12, [
+      ['user', 'Quand est-ce qu’on utilise le present perfect ?'],
+      ['assistant', 'Le **present perfect** relie le passé au présent : une expérience (« I have visited London »), ou une action passée dont le résultat compte maintenant (« I have lost my keys »). Avec une date précise (« yesterday », « in 2020 »), on revient au prétérit.'],
+      ['user', 'Merci, c’est plus clair !'],
+      ['assistant', 'Avec plaisir ! Garde cette règle en tête : date précise → prétérit, expérience ou résultat → present perfect.'],
+    ]),
+    thread('seed-t2', 'Préparer l’évaluation du module 3', -2, 18, [
+      ['user', 'Comment préparer l’évaluation du module 3 ?'],
+      ['assistant', 'Revois le prétérit des verbes irréguliers et réécoute « A weekend away ». L’évaluation compte 12 questions et se valide à 70 % de bonnes réponses du premier coup.'],
+      ['user', 'Je la passe demain.'],
+      ['assistant', 'Bonne idée : une révision express de 6 minutes ce soir, et tu seras prêt. Tu peux le faire !'],
+    ]),
+    thread('seed-t3', 'Organiser ma semaine', -4, 12, [
+      ['user', 'Aide-moi à organiser ma semaine.'],
+      ['assistant', 'Avec 10 minutes par jour, vise une leçon du module 3 chaque midi, et garde le week-end pour une révision. Tu termines le module avant vendredi.'],
+    ]),
   ];
 
   const notifications: AppNotification[] = [
@@ -104,8 +142,9 @@ export function createSeedState(now = new Date()): LearnerState {
 
   return {
     version: 2,
-    profile: { firstName: 'Alex', lastName: 'Martin', dailyGoalMin: 10 },
-    prefs: { voice: true, voiceURI: '', rate: 1, motion: 'system', aiMode: 'live' },
+    profile: { firstName: 'Alex', lastName: 'Martin', dailyGoalMin: 10, goal: 'Être à l’aise à l’oral au travail' },
+    prefs: { voice: true, voiceURI: '', rate: 1, motion: 'system', aiMode: 'live', dock: 'panel', coach: 'encourage', translate: true,
+      notify: { daily: true, weekly: true, newCourses: false }, chatSeenAt: conversation[0].at },
     currentCourseId: 'en-b1',
     enrollments,
     completions,
@@ -114,7 +153,8 @@ export function createSeedState(now = new Date()): LearnerState {
     activity,
     achievements: {},
     conversation,
-    assistantQuestions: 1,
+    chats,
+    assistantQuestions: 4,
     notifications,
     subscription: seedSubscription(now),
     seededAt: now.toISOString(),

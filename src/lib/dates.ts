@@ -23,16 +23,16 @@ export const weekday = (d: Date) => DAYS[d.getDay()];
 export const timeHM = (d: Date) => `${pad(d.getHours())}:${pad(d.getMinutes())}`;
 const MONTHS_LONG = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
 const DAYS_LONG = ['dimanche', 'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi'];
-/** « jeudi 13 novembre » (+ the year when it is not the current one) */
+/** « jeudi 13 novembre » (+ the year when it is not the current one) */
 export const longDate = (d: Date, now = new Date()) => `${DAYS_LONG[d.getDay()]} ${d.getDate()} ${MONTHS_LONG[d.getMonth()]}${d.getFullYear() !== now.getFullYear() ? ` ${d.getFullYear()}` : ''}`;
-/** « 13 oct. → 13 nov. », with the years when the span crosses a year or is not in the current one */
+/** « 13 oct. → 13 nov. », with the years when the span crosses a year or is not in the current one */
 export const spanLabel = (a: Date, b: Date, now = new Date(), sep = ' → ') => {
   if (a.getFullYear() !== b.getFullYear()) return `${shortDate(a)} ${a.getFullYear()}${sep}${shortDate(b)} ${b.getFullYear()}`;
   return `${shortDate(a)}${sep}${shortDate(b)}${b.getFullYear() !== now.getFullYear() ? ` ${b.getFullYear()}` : ''}`;
 };
-/** « 13 oct. » (+ the year when it is not the current one) */
+/** « 13 oct. » (+ the year when it is not the current one) */
 export const shortDateY = (d: Date, now = new Date()) => `${shortDate(d)}${d.getFullYear() !== now.getFullYear() ? ` ${d.getFullYear()}` : ''}`;
-/** « 13/10/2026 » */
+/** « 13/10/2026 » */
 export const numericDate = (d: Date) => `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()}`;
 
 export function relative(iso: string, now = new Date()): string {

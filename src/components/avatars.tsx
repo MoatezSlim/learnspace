@@ -92,7 +92,7 @@ export function InitialsSvg({ text, color = 0, className }: { text: string; colo
     <svg className={className} viewBox="0 0 64 64" aria-hidden="true" focusable="false">
       <defs><linearGradient id={g} x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor={c1} /><stop offset="1" stopColor={c2} /></linearGradient></defs>
       <circle cx="32" cy="32" r="32" fill={`url(#${g})`} />
-      <text x="32" y="33" textAnchor="middle" dominantBaseline="central" fill="#fff" fontFamily="'Nunito Sans', system-ui, sans-serif" fontWeight="800" fontSize={text.length > 1 ? 23 : 28} letterSpacing=".5">{text}</text>
+      <text x="32" y="33" textAnchor="middle" dominantBaseline="central" fill="#fff" fontFamily="Figtree, system-ui, sans-serif" fontWeight="800" fontSize={text.length > 1 ? 23 : 28} letterSpacing=".5">{text}</text>
     </svg>
   );
 }

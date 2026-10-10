@@ -28,7 +28,7 @@ export const leaAsset = (p: string) => `assets/lea/${p}`;
 /** Sheet frame shown for each mood / pose */
 const MOOD_FRAME: Record<Mood, string> = {
   neutral: 'neutral', smile: 'smile', encouraging: 'smile', happy: 'happy', excited: 'excited', delighted: 'delighted',
-  laugh: 'laugh', wink: 'wink', content: 'content', thinking: 'thinking', curious: 'curious',
+  laugh: 'laugh', wink: 'wink', wink2: 'wink2', content: 'content', thinking: 'thinking', curious: 'curious',
   surprised: 'surprised', concerned: 'surprised', sad: 'sad', skeptical: 'skeptical', confused: 'skeptical',
 };
 const POSE_FRAME: Record<Pose, string> = { downLeft: 'downLeft', downRight: 'downRight', shy: 'shy', shyLeft: 'shyLeft', lookUp: 'lookUp' };
@@ -55,6 +55,7 @@ export const CROPS = {
   guide: [-30 * k, -6 * k, 478 * k, 640 * k] as const,   // course pop-up
   tall: [-40 * k, -8 * k, 498 * k, 790 * k] as const,    // conversation stage
   face: [34 * k, 150 * k, 350 * k, 350 * k] as const,
+  full: [0, 0, W, H] as const,                           // coach panel: the whole canvas (the panel crops it)
 };
 export type Framing = keyof typeof CROPS;
 
@@ -88,6 +89,8 @@ export const live = {
   droop: 0,                                         // 0..1: head lowered (sad)
   tilt: 0,                                          // extra head tilt in degrees
   reduced: false,
+  /** no animation at all: still picture (no eye tracking, no blinking) */
+  still: false,
 };
 
 interface Inst {
@@ -212,7 +215,7 @@ function tick(now: number) {
   const visible = [...insts].filter((i) => i.visible);
   if (!visible.length) return;
 
-  const b = blinkValue(now);
+  const b = live.still ? 0 : blinkValue(now);
   const active = pointer && now - pointer.t < 4000;
   if (!active && now > wander.next) {
     // idle: look at the viewer most of the time, with small glances
@@ -230,7 +233,8 @@ function tick(now: number) {
 
   for (const inst of visible) {
     let tx = 0, ty = 0;
-    if (active && pointer) {
+    if (live.still) { tx = 0; ty = 0; }
+    else if (active && pointer) {
       const r = inst.stage.getBoundingClientRect();
       const ex = r.left + (LEA.eyeMid[0] / W) * r.width;
       const ey = r.top + (LEA.eyeMid[1] / H) * r.height;

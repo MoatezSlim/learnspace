@@ -1,8 +1,8 @@
 # Sidebar: slides between full width and icons only (click, keyboard, drag of the handle or the edge),
 # remembered, names shown next to the icons; "Nouveau cours" adds a course that Léa presents; the
-# subscription card, page and demo payment (no card details are ever asked for); phones: the drawer
-# carries the same pieces and the pages are not zoomed out by overflowing content; the profile picture
-# (avatar, initials or the learner's own photo, resized to 256 px).
+# subscription card, page and demo payment (no card details are ever asked for); the profile picture
+# (avatar, initials or the learner's own photo, resized to 256 px); phones: the menu sheet carries the
+# same pieces and nothing overflows.
 # Usage: python3 test_sidebar_and_billing.py <output dir>  (app served on http://localhost:4173)
 import asyncio, sys, re, datetime
 from playwright.async_api import async_playwright
@@ -11,28 +11,28 @@ URL = 'http://localhost:4173/'
 MONTHS = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre']
 def check(n, ok, extra=''): results.append(('PASS' if ok else 'FAIL', n, extra))
 
-async def sb_width(pg): return await pg.evaluate("document.querySelector('.sidebar').getBoundingClientRect().width")
+async def sb_width(pg): return await pg.evaluate("document.querySelector('.side').getBoundingClientRect().width")
 async def main_left(pg): return await pg.evaluate("document.querySelector('.main').getBoundingClientRect().left")
 
 async def main():
     async with async_playwright() as p:
         b = await p.chromium.launch()
-        pg = await (await b.new_context(viewport={'width': 1440, 'height': 870})).new_page(); errs = []
+        pg = await (await b.new_context(viewport={'width': 1440, 'height': 900})).new_page(); errs = []
         pg.on('pageerror', lambda e: errs.append(str(e))); pg.on('console', lambda m: errs.append(m.text) if m.type == 'error' else None)
         await pg.goto(URL, wait_until='networkidle'); await pg.evaluate('localStorage.clear()'); await pg.reload(wait_until='networkidle'); await pg.wait_for_timeout(800)
         full = await sb_width(pg); left_full = await main_left(pg)
-        t = await pg.inner_text('.sidebar')
-        check('sidebar: Nouveau cours and the subscription card', 'Nouveau cours' in t and 'Premium' in t and 'Se termine dans 3 jours' in t and await pg.locator('.sb-plan-pay').count() == 1, t.replace('\n', ' | ')[:160])
+        t = await pg.inner_text('.side')
+        check('sidebar: Nouveau cours and the subscription card', 'Nouveau cours' in t and 'Premium mensuel' in t and 'Se termine dans 3 jours' in t and await pg.locator('.side .plan-pay').count() == 1, t.replace('\n', ' | ')[:160])
 
-        # ---- slide: click, hover names, remembered, keyboard, drag
-        tg = pg.locator('.sb-toggle')
+        # ---- slide: click, names on hover, remembered, keyboard, drag
+        tg = pg.locator('.side .side-fold')
         expanded0 = await tg.get_attribute('aria-expanded')
         await tg.click(); await pg.wait_for_timeout(650)
         rail = await sb_width(pg); left_rail = await main_left(pg)
         op = await pg.evaluate("getComputedStyle(document.querySelector('.nav-item .sb-label')).opacity")
         check('click folds the sidebar to its icons', expanded0 == 'true' and rail < full * 0.45 and float(op) == 0 and await tg.get_attribute('aria-expanded') == 'false', f'{full:.0f} -> {rail:.0f} px, label opacity {op}')
         check('the page takes the freed space', left_rail < left_full - 100, f'main starts at {left_full:.0f} -> {left_rail:.0f}')
-        inside = await pg.evaluate("(() => { const s = document.querySelector('.sidebar').getBoundingClientRect(); return [...document.querySelectorAll('.sidebar .nav-item, .sb-new, .sb-plan, .sidebar-user')].every((n) => n.getBoundingClientRect().right <= s.right + 0.5); })()")
+        inside = await pg.evaluate("(() => { const s = document.querySelector('.side').getBoundingClientRect(); return [...document.querySelectorAll('.side .nav-item, .side .new-btn, .side .plan-head, .side .me')].every((n) => n.getBoundingClientRect().right <= s.right + 0.5); })()")
         check('icons stay inside the narrow sidebar', inside)
         await pg.hover('.nav-item >> nth=2'); await pg.wait_for_timeout(300)
         tip = await pg.evaluate("(() => { const s = getComputedStyle(document.querySelectorAll('.nav-item')[2], '::after'); return [s.content, s.opacity]; })()")
@@ -40,7 +40,7 @@ async def main():
         await pg.screenshot(path=f'{OUT}/sb_rail.png')
         await pg.reload(wait_until='networkidle'); await pg.wait_for_timeout(600)
         check('folded state is remembered', abs(await sb_width(pg) - rail) < 2)
-        await pg.focus('.sb-toggle'); await pg.keyboard.press('Enter'); await pg.wait_for_timeout(650)
+        await pg.focus('.side .side-fold'); await pg.keyboard.press('Enter'); await pg.wait_for_timeout(650)
         check('the keyboard unfolds it', abs(await sb_width(pg) - full) < 2 and await tg.get_attribute('aria-expanded') == 'true')
         box = await tg.bounding_box(); x, y = box['x'] + box['width'] / 2, box['y'] + box['height'] / 2
         await pg.mouse.move(x, y); await pg.mouse.down(); await pg.mouse.move(x - 60, y, steps=6); await pg.wait_for_timeout(60)
@@ -48,12 +48,12 @@ async def main():
         await pg.mouse.move(x - 150, y, steps=8); await pg.mouse.up(); await pg.wait_for_timeout(650)
         after = await sb_width(pg)
         check('dragging the handle slides it with the pointer, then it settles on icons', rail + 10 < mid < full - 10 and abs(after - rail) < 2, f'during {mid:.0f}, after {after:.0f}')
-        e = await pg.locator('.sb-edge').bounding_box(); ex, ey = e['x'] + e['width'] / 2, e['y'] + 200
+        e = await pg.locator('.side-edge').bounding_box(); ex, ey = e['x'] + e['width'] / 2, e['y'] + 200
         await pg.mouse.move(ex, ey); await pg.mouse.down(); await pg.mouse.move(ex + 70, ey, steps=6); await pg.mouse.move(ex + 160, ey, steps=6); await pg.mouse.up(); await pg.wait_for_timeout(650)
         check('dragging the edge to the right unfolds it', abs(await sb_width(pg) - full) < 2)
 
         # ---- new course
-        await pg.click('.sb-new'); await pg.wait_for_timeout(450)
+        await pg.click('.side .new-btn'); await pg.wait_for_timeout(450)
         dlg = pg.locator('.dialog.nc')
         n0 = await dlg.locator('.nc-item').count()
         focused = await pg.evaluate("document.activeElement && document.activeElement.getAttribute('aria-label')")
@@ -67,18 +67,19 @@ async def main():
         title = await dlg.locator('.nc-item strong').first.inner_text()
         await dlg.locator('.nc-item').first.get_by_role('button', name=re.compile('^Ajouter')).click(); await pg.wait_for_timeout(1600)
         main_txt = await pg.inner_text('main')
-        check('new course: added, its page opens and Léa presents it', title in main_txt and 'Commencer le cours' in main_txt and await pg.locator('.guide').count() == 1 and await dlg.count() == 0, title)
+        check('new course: added, its page opens and Léa presents it', title in main_txt and 'Commencer :' in main_txt and await pg.locator('.rail .say-guide').count() == 1 and await dlg.count() == 0, title)
         await pg.screenshot(path=f'{OUT}/sb_course_added.png')
         await pg.goto(URL + '#courses'); await pg.wait_for_timeout(700)
-        mc = await pg.inner_text('main')
-        check('new course: listed in Mes cours, ready to start', '7 cours en cours' in mc and title.split(' ')[0] in mc and await pg.locator('.course-card', has_text=title.split(' ')[0]).get_by_role('button', name='Commencer').count() == 1, title)
-        await pg.click('.sb-new'); await pg.wait_for_timeout(400)
+        await pg.get_by_role('tab', name=re.compile('^À commencer')).click(); await pg.wait_for_timeout(300)
+        row = pg.locator('.mc-row', has_text=title)
+        check('new course: in Mes cours › À commencer, ready to start', await row.count() == 1 and await row.get_by_role('button', name='Commencer').count() == 1, title)
+        await pg.click('.side .new-btn'); await pg.wait_for_timeout(400)
         check('new course: no longer offered', await dlg.locator('.nc-item').count() == 7)
         await pg.keyboard.press('Escape'); await pg.wait_for_timeout(200)
         check('new course: Escape closes the dialog', await dlg.count() == 0)
 
         # ---- subscription: pay from the sidebar (demo)
-        await pg.click('.sb-plan-pay'); await pg.wait_for_timeout(450)
+        await pg.click('.side .plan-pay'); await pg.wait_for_timeout(450)
         d = pg.locator('.dialog.pay')
         txt = await d.inner_text()
         no_card = await d.locator('input:not([type="radio"])').count() == 0 and await pg.locator('input[autocomplete^="cc-"]').count() == 0
@@ -95,52 +96,53 @@ async def main():
         check('payment: processing, then confirmed', waiting and 'Paiement confirmé' in done, done.replace('\n', ' ')[:120])
         check('payment: access extended by a year from the end of the paid period', exp in done, exp)
         await pg.screenshot(path=f'{OUT}/sb_paid.png')
-        await pg.get_by_role('button', name='Fermer', exact=True).click(); await pg.wait_for_timeout(300)
-        side = await pg.inner_text('.sb-plan-wrap')
-        check('sidebar card: active, no payment button', 'Actif jusqu’au' in side and 'Annuel' in side and await pg.locator('.sb-plan-pay').count() == 0, side.replace('\n', ' | '))
+        await pg.locator('.dialog-actions').get_by_role('button', name='Fermer', exact=True).click(); await pg.wait_for_timeout(300)
+        side = await pg.inner_text('.side .plan')
+        check('sidebar card: active, no payment button', 'Actif jusqu’au' in side and 'annuel' in side and await pg.locator('.side .plan-pay').count() == 0, side.replace('\n', ' | '))
         await pg.locator('.topbar').get_by_role('button', name=re.compile('^Notifications')).click(); await pg.wait_for_timeout(300)
         check('payment: notification', 'Paiement reçu' in await pg.inner_text('.notif-pop'))
         await pg.keyboard.press('Escape')
         await pg.goto(URL + '#subscription'); await pg.wait_for_timeout(800)
-        rows = pg.locator('.sub-table tbody tr')
+        rows = pg.locator('.inv-table tbody tr')
         first = await rows.first.inner_text()
-        check('subscription page: the new invoice is listed first', await rows.count() == 5 and 'Annuel' in first and '89,99' in first, first.replace('\n', ' '))
-        cur = await pg.inner_text('.sub-plan.is-current')
-        check('subscription page: yearly is now the current offer', 'Annuel' in cur and 'Offre actuelle' in cur)
-        await rows.first.get_by_role('button', name=re.compile('^Voir la facture')).click(); await pg.wait_for_timeout(300)
+        check('subscription page: the new invoice is listed first', await rows.count() == 5 and '89,99' in first and str(datetime.date.today().year + 1) in first, first.replace('\n', ' '))
+        cur = await pg.inner_text('.offer.is-current')
+        check('subscription page: yearly is now the current offer', 'Annuel' in cur and 'Ton offre' in cur)
+        hero = await pg.inner_text('.sub-hero')
+        check('subscription page: hero shows the yearly plan and its end', 'Premium annuel' in hero and 'Actif jusqu’au' in hero, hero[:90].replace('\n', ' '))
+        await rows.first.get_by_role('button', name=re.compile('^Voir le reçu')).click(); await pg.wait_for_timeout(300)
         rec = await pg.inner_text('.dialog')
-        check('subscription page: invoice details', 'Montant payé' in rec and '89,99' in rec and 'Alex Martin' in rec)
+        check('subscription page: receipt details', 'Reçu' in rec and '89,99' in rec and 'Alex Martin' in rec and 'aucun paiement réel' in rec)
         await pg.keyboard.press('Escape')
         await pg.screenshot(path=f'{OUT}/sb_subscription.png', full_page=True)
         # ---- profile picture
-        def photo_js(sel): return f"(() => {{ const n = document.querySelector('{sel} .user-photo'); return n ? [n.tagName.toLowerCase(), n.getAttribute('src') || ''] : null; }})()"
-        top, side = await pg.evaluate(photo_js('.profile-btn')), await pg.evaluate(photo_js('.sidebar-user'))
+        def photo_js(sel): return f"(() => {{ const n = document.querySelector('{sel}'); return n ? [n.tagName.toLowerCase(), n.getAttribute('src') || ''] : null; }})()"
+        top, side = await pg.evaluate(photo_js('.avatar-btn .avatar-img')), await pg.evaluate(photo_js('.side .me-photo'))
         check('profile picture: an avatar of the learner, not Léa’s face', top and side and top[0] == 'svg' and side[0] == 'svg' and 'face' not in (top[1] + side[1]), f'{top} {side}')
-        await pg.click('.profile-btn'); await pg.get_by_role('menuitem', name='Changer ma photo').click(); await pg.wait_for_timeout(350)
+        await pg.click('.avatar-btn'); await pg.get_by_role('menuitem', name='Changer ma photo').click(); await pg.wait_for_timeout(350)
         pd = pg.locator('.dialog.photo-dlg')
         tiles = await pd.locator('.photo-tile').count()
         save = pd.get_by_role('button', name='Enregistrer')
         check('photo dialog: avatars and initials to choose from, nothing to save yet', tiles == 12 and await save.is_disabled(), str(tiles))
         await pd.locator('.photo-tile', has_text='Initiales AM, couleur 3').click(); await save.click(); await pg.wait_for_timeout(300)
-        ini = await pg.evaluate("document.querySelector('.sidebar-user .user-photo text')?.textContent")
+        ini = await pg.evaluate("document.querySelector('.side .me-photo text')?.textContent")
         check('photo: initials chosen, shown in the sidebar', ini == 'AM', str(ini))
-        # own photo: any image file is cropped to a 256 px square
         shot = await pg.screenshot(clip={'x': 300, 'y': 100, 'width': 640, 'height': 360})
-        await pg.click('.profile-btn'); await pg.get_by_role('menuitem', name='Changer ma photo').click(); await pg.wait_for_timeout(300)
+        await pg.click('.avatar-btn'); await pg.get_by_role('menuitem', name='Changer ma photo').click(); await pg.wait_for_timeout(300)
         await pg.set_input_files('#photo-file', files=[{'name': 'moi.png', 'mimeType': 'image/png', 'buffer': shot}]); await pg.wait_for_timeout(700)
         prev = await pg.evaluate("(() => { const i = document.querySelector('.photo-dlg img.photo-preview'); return i ? [i.naturalWidth, i.naturalHeight, i.src.slice(0, 23), i.src.length] : null; })()")
         check('photo: an uploaded image is cropped square and resized to 256 px', prev and prev[0] == 256 and prev[1] == 256 and prev[2] == 'data:image/jpeg;base64,' and prev[3] < 90000, str(prev))
         await save.click(); await pg.wait_for_timeout(300)
         await pg.reload(wait_until='networkidle'); await pg.wait_for_timeout(600)
-        mine = await pg.evaluate(photo_js('.profile-btn'))
+        mine = await pg.evaluate(photo_js('.avatar-btn .avatar-img'))
         check('photo: own picture shown at the top and kept after reload', mine and mine[0] == 'img' and mine[1].startswith('data:image/jpeg'), str(mine)[:60])
-        await pg.click('.profile-btn'); await pg.get_by_role('menuitem', name='Changer ma photo').click(); await pg.wait_for_timeout(300)
+        await pg.click('.avatar-btn'); await pg.get_by_role('menuitem', name='Changer ma photo').click(); await pg.wait_for_timeout(300)
         await pg.set_input_files('#photo-file', files=[{'name': 'notes.txt', 'mimeType': 'text/plain', 'buffer': b'hello'}]); await pg.wait_for_timeout(300)
         check('photo: a file that is not an image is refused with a message', 'Choisis une image' in await pd.inner_text())
         await pd.locator('.photo-tile', has_text='Avatar : Cheveux courts').click(); await save.click(); await pg.wait_for_timeout(300)
-        check('photo: back to an illustrated avatar', (await pg.evaluate(photo_js('.sidebar-user')))[0] == 'svg')
+        check('photo: back to an illustrated avatar', (await pg.evaluate(photo_js('.side .me-photo')))[0] == 'svg')
         await pg.goto(URL + '#settings'); await pg.wait_for_timeout(600)
-        check('settings: profile picture with a Changer button', await pg.locator('.pf-photo svg.pf-photo-img').count() == 1 and await pg.locator('.pf-photo').get_by_role('button', name='Changer').count() == 1)
+        check('settings: profile picture with a button to change it', await pg.locator('.pf-photo svg.pf-img').count() == 1 and await pg.locator('.pf-photo').get_by_role('button', name='Changer ma photo').count() == 1)
         check('no console or page errors', not errs, str(errs[:3]))
 
         # ---- phone
@@ -150,11 +152,11 @@ async def main():
         await mp.goto(URL, wait_until='networkidle'); await mp.wait_for_timeout(900)
         sw = await mp.evaluate('[innerWidth, document.documentElement.scrollWidth]')
         check('phone home: nothing overflows, the page is not zoomed out', sw == [390, 390], str(sw))
-        await mp.click('.m-menu'); await mp.wait_for_timeout(450)
-        check('phone drawer: Nouveau cours and the subscription card, no slide handle',
-              await mp.locator('.m-drawer .sb-new').count() == 1 and await mp.locator('.m-drawer .sb-plan-pay').is_visible() and await mp.locator('.m-drawer .sb-toggle').count() == 0)
-        await mp.click('.m-drawer .sb-plan-pay'); await mp.wait_for_timeout(450)
-        check('phone: paying closes the drawer and shows the payment on top', await mp.locator('.m-drawer').count() == 0 and await mp.locator('.dialog.pay').is_visible())
+        await mp.click('.m-me'); await mp.wait_for_timeout(450)
+        check('phone menu: Nouveau cours and the subscription card, no slide handle',
+              await mp.locator('.m-sheet .new-btn').count() == 1 and await mp.locator('.m-sheet .plan-pay').is_visible() and await mp.locator('.m-sheet .side-edge').count() == 0)
+        await mp.click('.m-sheet .plan-pay'); await mp.wait_for_timeout(450)
+        check('phone: paying closes the menu and shows the payment on top', await mp.locator('.m-sheet').count() == 0 and await mp.locator('.dialog.pay').is_visible())
         await mp.locator('.dialog.pay').get_by_role('button', name='Annuler').click(); await mp.wait_for_timeout(250)
         await mp.goto(URL + '#subscription'); await mp.wait_for_timeout(800)
         sw2 = await mp.evaluate('[innerWidth, document.documentElement.scrollWidth]')

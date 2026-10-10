@@ -1,0 +1,58 @@
+/* ------------------------------------------------------------- badges: the next one */
+.next-badge { position: relative; isolation: isolate; overflow: hidden; display: grid; grid-template-columns: auto minmax(0, 1fr) minmax(260px, 330px); gap: 30px; align-items: center; padding: 26px 26px 26px 34px; border-radius: 30px;
+  background: linear-gradient(120deg, #FFF6E3 0%, #FFEFE2 46%, #F3F0FF 100%); box-shadow: var(--sh-1), inset 0 0 0 1px rgba(239, 169, 42, .2); }
+.next-badge::before { content: ''; position: absolute; z-index: -1; left: -60px; top: -90px; width: 360px; height: 360px; border-radius: 50%; background: radial-gradient(circle, rgba(255, 201, 92, .45), transparent 65%); }
+.next-badge::after { content: ''; position: absolute; z-index: -1; inset: 0; opacity: .6; background-image: radial-gradient(rgba(167, 106, 6, .12) 1.1px, transparent 1.2px); background-size: 16px 16px;
+  -webkit-mask-image: linear-gradient(90deg, #000, transparent 40%); mask-image: linear-gradient(90deg, #000, transparent 40%); }
+.nb-medal { position: relative; display: grid; place-items: center; width: 190px; }
+.nb-medal::before { content: ''; position: absolute; width: 180px; height: 180px; border-radius: 50%; top: 50%; left: 50%; transform: translate(-50%, -40%); background: radial-gradient(circle, rgba(255, 255, 255, .95), rgba(255, 255, 255, 0) 70%); }
+.nb-medal .medal { animation: nb-float 4.6s ease-in-out infinite; }
+@keyframes nb-float { 50% { transform: translateY(-6px) rotate(-2deg); } }
+.nb-main { display: flex; flex-direction: column; align-items: flex-start; gap: 10px; min-width: 0; }
+.nb-kicker { display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 11px; border-radius: 99px; background: #fff; color: var(--gold-ink); font: 700 12.5px var(--ui); text-transform: uppercase; letter-spacing: .05em; box-shadow: 0 6px 14px -8px rgba(167, 106, 6, .5); }
+.nb-main h2 { font: 760 34px/1.08 var(--display); letter-spacing: -0.025em; }
+.nb-main p { font-size: 15.5px; color: var(--ink-2); max-width: 520px; }
+.nb-progress { display: flex; align-items: center; gap: 14px; width: min(100%, 460px); margin: 4px 0 8px; }
+.nb-progress .bar { flex: 1; width: auto; height: 10px; background: rgba(255, 255, 255, .8); box-shadow: inset 0 0 0 1px rgba(239, 169, 42, .18); }
+.nb-progress b { font-size: 18px; color: var(--ink); white-space: nowrap; }
+.almost { align-self: stretch; display: flex; flex-direction: column; gap: 6px; padding: 18px; border-radius: 22px; background: rgba(255, 255, 255, .78); box-shadow: 0 16px 30px -22px rgba(10, 31, 60, .45); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
+.almost h3 { font: 700 15px var(--ui); margin-bottom: 6px; }
+.almost ul { display: flex; flex-direction: column; gap: 4px; }
+.almost li { display: flex; align-items: center; gap: 12px; padding: 8px 6px; border-radius: 12px; }
+.almost-body { display: flex; flex-direction: column; gap: 3px; flex: 1; min-width: 0; }
+.almost-body strong { font-size: 14px; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.almost-body small { font-size: 12.5px; color: var(--ink-3); }
+.almost-body .bar { margin-top: 3px; }
+.almost li > b { font-size: 13.5px; color: var(--gold-ink); width: 42px; text-align: right; flex: none; }
+
+/* ------------------------------------------------------------- badges: grids */
+.badges-page section > .sec-head { margin-bottom: 16px; }
+.badge-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(208px, 1fr)); gap: 18px; }
+.badge-card { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 8px; padding: 26px 18px 20px; overflow: hidden; isolation: isolate; transition: transform .25s var(--ease), box-shadow .25s; }
+.badge-card:hover { transform: translateY(-3px); box-shadow: var(--sh-2); }
+.badge-card.is-earned::before { content: ''; position: absolute; z-index: -1; left: 50%; top: -70px; width: 220px; height: 200px; transform: translateX(-50%); border-radius: 50%;
+  background: radial-gradient(circle, color-mix(in srgb, var(--glow, var(--blue)) 22%, transparent), transparent 68%); }
+.badge-card .medal { margin-bottom: 6px; }
+.badge-card h3 { font: 750 16.5px/1.25 var(--display); letter-spacing: -0.01em; }
+.badge-card p { font-size: 13.5px; color: var(--ink-2); line-height: 1.45; flex: 1; }
+.badge-card .pill { margin-top: 6px; }
+.badge-new { position: absolute; top: 14px; right: 14px; height: 24px; padding: 0 9px; border-radius: 99px; background: var(--flame); color: #fff; font: 750 11.5px/24px var(--ui); text-transform: uppercase; letter-spacing: .04em; box-shadow: 0 6px 14px -6px rgba(255, 122, 47, .9); }
+.badge-card.is-locked { background: rgba(255, 255, 255, .7); box-shadow: inset 0 0 0 1.5px var(--line); }
+.badge-card.is-locked:hover { background: #fff; box-shadow: var(--sh-1); }
+.badge-card.is-locked h3 { color: var(--ink-2); }
+.badge-lock { position: absolute; top: 14px; right: 14px; width: 28px; height: 28px; border-radius: 9px; display: grid; place-items: center; background: var(--mist); color: var(--ink-3); }
+.badge-prog { display: flex; flex-direction: column; gap: 7px; width: 100%; margin-top: 8px; }
+.badge-prog > span { display: flex; align-items: baseline; gap: 4px; font-size: 12.5px; color: var(--ink-3); font-weight: 600; }
+.badge-prog b { color: var(--ink); }
+.badge-prog em { margin-left: auto; font-style: normal; color: var(--blue-700); font-weight: 700; }
+
+@container content (max-width: 1100px) {
+  .next-badge { grid-template-columns: auto minmax(0, 1fr); }
+  .almost { grid-column: 1 / -1; }
+  .almost ul { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 6px 14px; }
+}
+@container content (max-width: 640px) {
+  .next-badge { grid-template-columns: 1fr; justify-items: center; text-align: center; padding: 24px 20px; }
+  .nb-main { align-items: center; }
+  .nb-main h2 { font-size: 28px; }
+}

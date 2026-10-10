@@ -22,12 +22,14 @@ export function describeCourse(c: Course, s: LearnerState): { hello: string; tex
   const hello = st.pct >= 100 ? 'Tu as terminé ce cours, bravo !' : st.enrolled ? (st.done ? 'On continue ce cours ?' : 'Prêt à commencer ?') : 'Ce cours pourrait te plaire !';
   const parts = [`Au programme : ${lc(c.description)}`, `${st.total} leçons en ${c.modules.length} modules, environ ${c.hours} h, niveau ${LEVEL_LABEL[c.level].toLowerCase()}.`];
   if (st.pct >= 100) parts.push('Tu peux revoir chaque leçon quand tu veux.');
-  else if (st.enrolled && st.done && st.next) parts.push(`Tu en es à ${st.pct} % : ta prochaine leçon, « ${st.next.title} », dure ${st.next.minutes} min.`);
-  else if (first) parts.push(`${st.enrolled ? 'Tu peux' : 'Inscris-toi et'} commencer par « ${first.title} ».`);
+  else if (st.enrolled && st.done && st.next) parts.push(`Tu en es à ${st.pct} % : ta prochaine leçon, « ${st.next.title} », dure ${st.next.minutes} min.`);
+  else if (first) parts.push(`${st.enrolled ? 'Tu peux' : 'Inscris-toi et'} commencer par « ${first.title} ».`);
   return { hello, text: parts.join(' ') };
 }
 
 const canHover = () => typeof window !== 'undefined' && !!window.matchMedia && window.matchMedia('(hover: hover) and (pointer: fine)').matches;
+/** A discreet Léa only talks when asked: no presentations on her own. */
+const quiet = (s: LearnerState) => (s.prefs.coach ?? 'encourage') === 'discreet';
 let showTimer: number | undefined;
 let hideTimer: number | undefined;
 let overGuide = false;
@@ -43,11 +45,13 @@ function show(courseId: string, mode: 'peek' | 'open', s: LearnerState) {
 
 export const guide = {
   /** The course page was opened: Léa presents it (stays until closed). */
-  open(courseId: string, s: LearnerState) { window.clearTimeout(showTimer); show(courseId, 'open', s); },
+  open(courseId: string, s: LearnerState) { if (quiet(s)) return; window.clearTimeout(showTimer); show(courseId, 'open', s); },
+  /** Explicit request (e.g. « Léa, présente-moi ce cours »): shown whatever the coaching style. */
+  present(courseId: string, s: LearnerState) { window.clearTimeout(showTimer); show(courseId, 'open', s); },
   close() { window.clearTimeout(showTimer); window.clearTimeout(hideTimer); overGuide = false; if (state.courseId) set({ courseId: null }); },
   /** Pointer resting on a course card (devices with a mouse only). */
   hoverStart(courseId: string, s: LearnerState) {
-    if (!canHover()) return;
+    if (!canHover() || quiet(s)) return;
     window.clearTimeout(hideTimer); window.clearTimeout(showTimer);
     if (state.courseId === courseId) return;
     showTimer = window.setTimeout(() => show(courseId, state.mode === 'open' && state.courseId ? 'open' : 'peek', s), state.courseId ? 160 : 420);
@@ -59,7 +63,7 @@ export const guide = {
     hideTimer = window.setTimeout(() => { if (!overGuide && state.mode === 'peek') set({ courseId: null }); }, 450);
   },
   /** Keyboard focus on a course card shows the same help. */
-  focus(courseId: string, s: LearnerState) { window.clearTimeout(showTimer); show(courseId, state.mode === 'open' && state.courseId ? 'open' : 'peek', s); },
+  focus(courseId: string, s: LearnerState) { if (quiet(s)) return; window.clearTimeout(showTimer); show(courseId, state.mode === 'open' && state.courseId ? 'open' : 'peek', s); },
   enterGuide() { overGuide = true; window.clearTimeout(hideTimer); },
   leaveGuide() { overGuide = false; if (state.mode === 'peek') guide.hoverEnd(); },
 };

@@ -2,12 +2,12 @@
 //  - dist/        the Artifact page (HTML fragment: the platform adds the document skeleton)
 //  - dist-local/  a full HTML document with locally vendored React, for offline browser tests
 //  - dist-site/   the public website (GitHub Pages): proper document head, favicon, local React
-import { build } from 'esbuild';
-import { readFileSync, writeFileSync, mkdirSync, cpSync, rmSync, existsSync } from 'node:fs';
+import { build, transform } from 'esbuild';
+import { readFileSync, writeFileSync, mkdirSync, cpSync, rmSync, existsSync, readdirSync } from 'node:fs';
 
 const REACT_CDN = 'https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js';
 const REACT_DOM_CDN = 'https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js';
-const FONTS = 'https://fonts.googleapis.com/css2?family=Nunito+Sans:opsz,wght@6..12,400;6..12,500;6..12,600;6..12,700;6..12,800&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&display=swap';
+// Fonts (Bricolage Grotesque, Figtree) are served with the assets: see src/styles/00-fonts.css.
 
 // React comes from the UMD globals loaded before the app script.
 const reactGlobals = {
@@ -36,14 +36,15 @@ const result = await build({
   legalComments: 'none',
 });
 const js = result.outputFiles[0].text.replace(/<\/script/gi, '<\\/script');
-const css = readFileSync('src/styles.css', 'utf8');
+// Styles: every file of src/styles, in name order
+const cssSource = readdirSync('src/styles').filter((f) => f.endsWith('.css')).sort().map((f) => readFileSync(`src/styles/${f}`, 'utf8')).join('\n');
+const css = (await transform(cssSource, { loader: 'css', minify: true, target: ['chrome100', 'safari15', 'firefox100'] })).code.replace(/<\/style/gi, '<\\/style');
 const firstFrame = readFileSync('src/first-frame.html', 'utf8');
 
 const head = `<title>LearnSpace</title>
-<meta name="description" content="LearnSpace — apprendre à ton rythme avec Léa, ton assistante.">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="${FONTS}">
+<meta name="description" content="LearnSpace — apprendre à ton rythme avec Léa, ta coach.">
+<link rel="preload" href="assets/fonts/figtree-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="assets/fonts/bricolage-grotesque-latin-opsz-normal.woff2" as="font" type="font/woff2" crossorigin>
 <style>${css}</style>`;
 
 const body = (react, reactDom) => `<div id="root">${firstFrame}</div>
@@ -66,7 +67,7 @@ ${body('vendor/react.js', 'vendor/react-dom.js')}
 </body></html>`);
 
 // Public website: a complete document (the same app, React served next to it)
-const FAVICON = "data:image/svg+xml," + encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='#0C2643'/><g transform='translate(4 3.6) scale(.75)' fill='#fff'><path d='M16 5 2.5 11.6 16 18.2l11-5.4v6.7h2.6v-7.9Z'/><path d='M8.2 15.6v5.1c0 2 3.5 4.1 7.8 4.1s7.8-2.1 7.8-4.1v-5.1L16 19.4Z' opacity='.78'/></g></svg>`);
+const FAVICON = "data:image/svg+xml," + encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><defs><linearGradient id='g' x1='0' y1='0' x2='1' y2='1'><stop offset='0' stop-color='#4C86FF'/><stop offset='1' stop-color='#2155E8'/></linearGradient></defs><rect width='32' height='32' rx='9' fill='url(#g)'/><g transform='translate(4.5 4) scale(.96)' fill='#fff'><path d='M12 5 2.8 9.5 12 14l9.2-4.5Z'/><path d='M6.5 11.6v4c0 1.5 2.5 3 5.5 3s5.5-1.5 5.5-3v-4L12 14.3Z' opacity='.8'/></g></svg>`);
 mkdirSync('dist-site/vendor', { recursive: true });
 cpSync('node_modules/react/umd/react.production.min.js', 'dist-site/vendor/react.js');
 cpSync('node_modules/react-dom/umd/react-dom.production.min.js', 'dist-site/vendor/react-dom.js');
@@ -77,11 +78,11 @@ writeFileSync('dist-site/index.html', `<!doctype html>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="theme-color" content="#0C2643">
+<meta name="theme-color" content="#0A1F3C">
 <link rel="icon" href="${FAVICON}">
 <meta property="og:type" content="website">
 <meta property="og:title" content="LearnSpace">
-<meta property="og:description" content="Apprendre à ton rythme avec Léa, ton assistante.">
+<meta property="og:description" content="Apprendre à ton rythme avec Léa, ta coach.">
 <style>:root{color-scheme:light}body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
 ${head}
 </head>

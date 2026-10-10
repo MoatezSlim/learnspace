@@ -1,7 +1,7 @@
 // Learner store: a small external store (useSyncExternalStore) with explicit actions.
 // Every statistic in the UI derives from this state; actions are the only writers.
 import { useSyncExternalStore } from 'react';
-import type { LearnerState, LessonAttempt, ChatMessage, AppNotification, Prefs, Completion, PlanId, Invoice } from '../types';
+import type { LearnerState, LessonAttempt, ChatMessage, AppNotification, Prefs, Completion, PlanId, Invoice, ChatThread } from '../types';
 import { adopt, demoState } from './demo';
 import { getLesson, getCourse } from '../data/courses';
 import { checkAnswer } from './selectors';
@@ -164,6 +164,10 @@ class LearnStore {
     this.set((s) => { if (!s.enrollments[courseId]) s.enrollments[courseId] = { enrolledAt: nowIso(), lastActiveAt: nowIso() }; });
   }
   setCurrentCourse(courseId: string) { this.set((s) => { s.currentCourseId = courseId; }); }
+  /** A paused course leaves "En cours" until the learner resumes it. */
+  pauseCourse(courseId: string, paused: boolean) {
+    this.set((s) => { const e = s.enrollments[courseId]; if (e) { if (paused) e.paused = true; else delete e.paused; } });
+  }
 
   // ---------------------------------------------------------------- assistant
   addMessage(m: Omit<ChatMessage, 'id' | 'at'> & { id?: string }): string {
@@ -183,6 +187,47 @@ class LearnStore {
     this.set((s) => { const m = s.conversation.find((x) => x.id === id); if (m) Object.assign(m, patch); });
   }
   clearConversation() { this.set((s) => { s.conversation = []; }); }
+  /** Keeps the current conversation in the history and starts a new one (optionally with Léa's first line). */
+  newConversation(first?: Omit<ChatMessage, 'id' | 'at'>) {
+    this.set((s) => {
+      archive(s);
+      s.conversation = first ? [{ ...first, id: uid(), at: nowIso() }] : [];
+      s.prefs.chatSeenAt = nowIso();
+    });
+  }
+  /** Brings an earlier conversation back (the current one goes to the history). */
+  openThread(id: string) {
+    this.set((s) => {
+      const t = (s.chats ?? []).find((x) => x.id === id); if (!t) return;
+      s.chats = (s.chats ?? []).filter((x) => x.id !== id);
+      archive(s);
+      s.conversation = t.messages;
+      s.prefs.chatSeenAt = nowIso();
+    });
+  }
+  markChatSeen() { if (unreadCount(this.state)) this.set((s) => { s.prefs.chatSeenAt = nowIso(); }); }
+
+  // ---------------------------------------------------------------- reminders and automatic notes
+  addReminder(at: string, title: string, body: string) {
+    this.set((s) => { (s.reminders ??= []).push({ id: uid(), at, title, body }); });
+  }
+  /** Turns due reminders into notifications, and sends the daily reminder / weekly summary once. */
+  deliverNotes(now = new Date(), summary?: { daily?: () => { title: string; body: string } | null; weekly?: () => { title: string; body: string } | null }) {
+    const s0 = this.state;
+    const due = (s0.reminders ?? []).filter((r) => new Date(r.at) <= now);
+    const dayKeyNow = dayKey(now);
+    const daily = s0.prefs.notify?.daily !== false && now.getHours() * 60 + now.getMinutes() >= 12 * 60 + 15 && !(s0.sentNotes ?? []).includes(`d:${dayKeyNow}`) ? summary?.daily?.() ?? null : null;
+    const weekKey = `w:${dayKey(new Date(now.getFullYear(), now.getMonth(), now.getDate() - ((now.getDay() + 6) % 7)))}`;
+    const weekly = s0.prefs.notify?.weekly !== false && now.getDay() === 0 && now.getHours() >= 18 && !(s0.sentNotes ?? []).includes(weekKey) ? summary?.weekly?.() ?? null : null;
+    if (!due.length && !daily && !weekly) return;
+    this.set((s) => {
+      for (const r of due) pushNote(s, { title: r.title, body: r.body, kind: 'info' });
+      s.reminders = (s.reminders ?? []).filter((r) => !due.some((d) => d.id === r.id));
+      if (daily) { pushNote(s, { ...daily, kind: 'streak' }); (s.sentNotes ??= []).push(`d:${dayKeyNow}`); }
+      if (weekly) { pushNote(s, { ...weekly, kind: 'info' }); (s.sentNotes ??= []).push(weekKey); }
+      if (s.sentNotes && s.sentNotes.length > 40) s.sentNotes.splice(0, s.sentNotes.length - 40);
+    });
+  }
   checkBadges(): string[] {
     let earned: string[] = [];
     this.set((s) => { earned = newlyEarned(s); for (const id of earned) { s.achievements[id] = nowIso(); pushNote(s, { title: `Badge obtenu : ${achievement(id).title}`, body: achievement(id).description, kind: 'badge' }); } });
@@ -223,6 +268,21 @@ class LearnStore {
     this.state = fresh; this.emit();
     window.clearTimeout(this.timer); this.timer = window.setTimeout(() => { this.timer = undefined; void this.persist(); }, 100);
   }
+}
+
+/** Messages from Léa the learner has not seen yet (badge on the menu). */
+export function unreadCount(s: LearnerState) {
+  const seen = s.prefs.chatSeenAt ?? '';
+  return s.conversation.filter((m) => m.role === 'assistant' && m.at > seen && m.source !== 'system').length;
+}
+
+/** Moves the current conversation to the history when the learner took part in it. */
+function archive(s: LearnerState) {
+  const firstQ = s.conversation.find((m) => m.role === 'user');
+  if (!firstQ) return;
+  const title = firstQ.text.replace(/\s+/g, ' ').trim();
+  const t: ChatThread = { id: uid(), title: title.length > 46 ? `${title.slice(0, 44).trim()}…` : title, at: s.conversation[s.conversation.length - 1].at, messages: s.conversation };
+  s.chats = [t, ...(s.chats ?? [])].slice(0, 12);
 }
 
 function pushNote(s: LearnerState, n: Omit<AppNotification, 'id' | 'at' | 'read'>) {

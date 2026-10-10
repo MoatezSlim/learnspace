@@ -1,7 +1,7 @@
 # Usage: python3 test_saved_progress.py <output dir>  (needs stale.json / frozen.json from gen-states in that dir)
 # Stored progress from an earlier day: the dashboard must open on the reference day, keep the
 # learner's own work, stay frozen once they finished a lesson, and adopt cloud progress on a new device.
-import asyncio, json, sys
+import asyncio, json, sys, re
 from playwright.async_api import async_playwright
 D = sys.argv[1].rstrip('/') + '/'
 stale = open(D + 'stale.json').read(); frozen = open(D + 'frozen.json').read()
@@ -23,11 +23,13 @@ async def main():
         b = await p.chromium.launch()
         # A — untouched demo from two days ago, one answer given
         ctx, pg, errs = await with_local(b, stale)
-        t = await pg.inner_text('.d2')
-        check('A: goal shows 10 min / 10 min', '10 min' in t and '/ 10 min' in t, t[:0])
+        t = await pg.inner_text('main')
+        check('A: goal shows 10 / 10 min', bool(re.search(r'\b10\s*/ 10 min', t)), t[:0])
         check('A: two "+1 aujourd’hui"', t.count('+1 aujourd’hui') == 2, str(t.count('+1 aujourd’hui')))
-        check('A: streak 5 jours', '5 jours' in t)
-        check('A: 24 / 35 and +2 cette semaine', '24 / 35' in t and '+2 cette semaine' in t)
+        check('A: streak 5 jours', bool(re.search(r'\b5\s*jours', t)))
+        await pg.get_by_role('group', name='Période').get_by_role('button', name='Cette semaine').click(); await pg.wait_for_timeout(300)
+        tw = await pg.inner_text('main')
+        check('A: 24 lessons out of 35, +2 this week', '24 leçons sur 35 terminées' in t and '+2 cette semaine' in tw)
         st = json.loads(await pg.evaluate("localStorage.getItem('learnspace:v1')"))
         old = json.loads(stale)
         check('A: answer and lesson in progress kept', st['answerLog'] == old['answerLog'] and st['attempts'] == old['attempts'])
@@ -36,9 +38,10 @@ async def main():
         await ctx.close()
         # B — the learner finished a lesson: history frozen, real figures
         ctx, pg, errs = await with_local(b, frozen)
-        t = await pg.inner_text('.d2')
-        check('B: own lesson counted (25 / 35)', '25 / 35' in t)
-        check('B: not moved to today (0 min today)', '0 min' in t and 'aucune aujourd’hui' in t)
+        t = await pg.inner_text('main')
+        check('B: own lesson counted (25 out of 35)', '25 leçons sur 35 terminées' in t)
+        goal = await pg.locator('.tile .tile-value').first.inner_text()
+        check('B: not moved to today (0 min today)', goal == '0' and 'aucune aujourd’hui' in t, goal)
         await ctx.close()
         # C — new device: no local copy, progress in the cloud
         ctx = await b.new_context(viewport={'width': 1440, 'height': 870})
@@ -54,8 +57,8 @@ async def main():
         await pg.goto(URL, wait_until='networkidle'); await pg.wait_for_timeout(1200)
         st = json.loads(await pg.evaluate("localStorage.getItem('learnspace:v1')") or 'null')
         check('C: cloud progress adopted on a new device', bool(st) and st['answerLog'] == json.loads(stale)['answerLog'], str(st and len(st['answerLog'])))
-        t = await pg.inner_text('.d2')
-        check('C: reference day shown', '/ 10 min' in t and t.count('+1 aujourd’hui') == 2 and '5 jours' in t)
+        t = await pg.inner_text('main')
+        check('C: reference day shown', bool(re.search(r'\b10\s*/ 10 min', t)) and t.count('+1 aujourd’hui') == 2 and bool(re.search(r'\b5\s*jours', t)))
         writes = await pg.evaluate("window.__writes.length")
         check('C: nothing overwritten in the cloud on load', writes == 0, str(writes))
         check('C: no page errors', not errs, str(errs[:2]))

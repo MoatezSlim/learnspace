@@ -1,134 +1,190 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useId, useState } from 'react';
 import { cx } from './ui';
+import { Icon } from './icons';
 
-// Hand-built SVG charts: one series each (no legend needed), recessive grid, hover/keyboard tooltip.
+// Hand-built charts for the redesign. Each has a text alternative (aria-label or a hidden table).
 
-function useWidth<T extends HTMLElement>(): [React.RefObject<T>, number] {
-  const ref = useRef<T>(null); const [w, setW] = useState(600);
-  useEffect(() => {
-    const el = ref.current; if (!el) return;
-    const ro = new ResizeObserver(([e]) => setW(Math.max(260, Math.round(e.contentRect.width))));
-    ro.observe(el); return () => ro.disconnect();
-  }, []);
-  return [ref, w];
-}
+// ---------------------------------------------------------------- week bars
+export interface DayBar { short: string; long: string; minutes: number | null; today?: boolean }
 
-export interface Point { label: string; short: string; value: number }
-
-export function AreaChart({ data, height = 220, max = 100, unit = '%', title }: { data: Point[]; height?: number; max?: number; unit?: string; title: string }) {
-  const [ref, w] = useWidth<HTMLDivElement>();
+/** Minutes per day with the daily goal as a dashed line. Future days are empty slots. */
+export function WeekBars({ days, goal, caption, height = 190 }: { days: DayBar[]; goal: number; caption: string; height?: number }) {
   const [hover, setHover] = useState<number | null>(null);
-  const pad = { l: 40, r: 44, t: 16, b: 28 };
-  const iw = w - pad.l - pad.r, ih = height - pad.t - pad.b;
-  const x = (i: number) => pad.l + (data.length === 1 ? iw / 2 : (i / (data.length - 1)) * iw);
-  const y = (v: number) => pad.t + ih - (v / max) * ih;
-  const ticks = [0, 25, 50, 75, 100].map((t) => (t / 100) * max);
-  const line = data.map((d, i) => `${i ? 'L' : 'M'}${x(i).toFixed(1)},${y(d.value).toFixed(1)}`).join('');
-  const area = `${line}L${x(data.length - 1).toFixed(1)},${y(0)}L${x(0).toFixed(1)},${y(0)}Z`;
-  const every = Math.max(1, Math.ceil(data.length / Math.max(2, Math.floor(iw / 72))));
-  const last = data[data.length - 1];
-  const onMove = (e: React.PointerEvent<SVGSVGElement>) => {
-    const r = e.currentTarget.getBoundingClientRect(); const px = e.clientX - r.left;
-    setHover(Math.max(0, Math.min(data.length - 1, Math.round(((px - pad.l) / iw) * (data.length - 1)))));
-  };
-  const h = hover !== null ? data[hover] : null;
+  const top = Math.max(goal * 2, ...days.map((d) => d.minutes ?? 0));
+  const max = Math.ceil(top / 10) * 10 + 4;
+  const pct = (v: number) => `${(v / max) * 100}%`;
   return (
-    <div className="chart" ref={ref}>
-      <svg width={w} height={height} role="img" aria-label={`${title} : de ${data[0]?.value} ${unit} à ${last?.value} ${unit}`} tabIndex={0}
-        onPointerMove={onMove} onPointerLeave={() => setHover(null)}
-        onKeyDown={(e) => { if (e.key === 'ArrowRight') setHover((v) => Math.min(data.length - 1, (v ?? -1) + 1)); if (e.key === 'ArrowLeft') setHover((v) => Math.max(0, (v ?? data.length) - 1)); if (e.key === 'Escape') setHover(null); }}
-        onBlur={() => setHover(null)}>
-        {ticks.map((t) => (
-          <g key={t}>
-            <line x1={pad.l} x2={w - pad.r} y1={y(t)} y2={y(t)} className="grid" />
-            <text x={pad.l - 8} y={y(t)} dy="0.32em" textAnchor="end" className="tick">{Math.round(t)}{unit}</text>
-          </g>
+    <div className="wb" style={{ height }}>
+      <div className="wb-plot" onMouseLeave={() => setHover(null)}>
+        <span className="wb-goal" style={{ bottom: pct(goal) }}><em>Objectif {goal} min</em></span>
+        {days.map((d, i) => (
+          <button key={i} type="button" className={cx('wb-col', d.today && 'is-today', d.minutes === null && 'is-future', hover === i && 'is-hover', (d.minutes ?? 0) >= goal && 'met')}
+            onMouseEnter={() => setHover(i)} onFocus={() => setHover(i)} onBlur={() => setHover(null)}
+            aria-label={`${d.long} : ${d.minutes === null ? 'à venir' : `${d.minutes} min${d.minutes >= goal ? ', objectif atteint' : ''}`}`}>
+            <span className="wb-track">
+              {d.minutes !== null && <span className="wb-bar" style={{ height: d.minutes ? `max(6px, ${pct(d.minutes)})` : '4px' }}>{(d.today || hover === i) && d.minutes > 0 && <b>{d.minutes}</b>}</span>}
+            </span>
+            <span className="wb-day">{d.short}</span>
+          </button>
         ))}
-        {data.map((d, i) => (i % every === 0 || i === data.length - 1) && (i === data.length - 1 || data.length - 1 - i >= every * 0.6) ? <text key={i} x={x(i)} y={height - 8} textAnchor="middle" className="tick">{d.short}</text> : null)}
-        <path d={area} className="area" />
-        <path d={line} className="line" />
-        {last && <>
-          <circle cx={x(data.length - 1)} cy={y(last.value)} r={5} className="dot" />
-          <g transform={`translate(${Math.min(w - 22, x(data.length - 1))},${y(last.value) - 18})`}>
-            <rect x={-20} y={-11} width={40} height={20} rx={6} className="end-pill" />
-            <text textAnchor="middle" dy="0.32em" className="end-label">{last.value}{unit}</text>
-          </g>
-        </>}
-        {h && hover !== null && <>
-          <line x1={x(hover)} x2={x(hover)} y1={pad.t} y2={pad.t + ih} className="crosshair" />
-          <circle cx={x(hover)} cy={y(h.value)} r={5} className="dot" />
-        </>}
-      </svg>
-      {h && hover !== null && (
-        <div className="tooltip" style={{ left: Math.min(w - 150, Math.max(0, x(hover) - 70)), top: Math.max(0, y(h.value) - 62) }} role="status">
-          <span>{h.label}</span><strong>{h.value}{unit}</strong>
+      </div>
+      <table className="sr-only"><caption>{caption}</caption><tbody>{days.map((d, i) => <tr key={i}><th scope="row">{d.long}</th><td>{d.minutes === null ? 'à venir' : `${d.minutes} min`}</td></tr>)}</tbody></table>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------- sparkline
+export function Spark({ values, color = 'var(--blue)', width = 110, height = 40, label }: { values: number[]; color?: string; width?: number; height?: number; label?: string }) {
+  const id = `sp${useId().replace(/[^a-zA-Z0-9]/g, '')}`;
+  if (values.length < 2) return null;
+  const min = Math.min(...values), max = Math.max(...values);
+  const span = max - min || 1;
+  const pts = values.map((v, i) => [3 + (i / (values.length - 1)) * (width - 6), 4 + (1 - (v - min) / span) * (height - 10)] as const);
+  const d = smoothPath(pts);
+  const last = pts[pts.length - 1];
+  return (
+    <svg className="spark" width={width} height={height} viewBox={`0 0 ${width} ${height}`} role={label ? 'img' : undefined} aria-label={label} aria-hidden={label ? undefined : true}>
+      <defs><linearGradient id={id} x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor={color} stopOpacity=".22" /><stop offset="1" stopColor={color} stopOpacity="0" /></linearGradient></defs>
+      <path d={`${d}L${last[0].toFixed(1)} ${height}L${pts[0][0].toFixed(1)} ${height}Z`} fill={`url(#${id})`} />
+      <path d={d} fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+      <circle cx={last[0]} cy={last[1]} r="3.4" fill="#fff" stroke={color} strokeWidth="2" />
+    </svg>
+  );
+}
+
+/** Catmull-Rom spline through points, as cubic Bézier segments. */
+export function smoothPath(pts: readonly (readonly [number, number])[]) {
+  if (!pts.length) return '';
+  let d = `M${pts[0][0].toFixed(1)} ${pts[0][1].toFixed(1)}`;
+  for (let i = 0; i < pts.length - 1; i++) {
+    const p0 = pts[Math.max(0, i - 1)], p1 = pts[i], p2 = pts[i + 1], p3 = pts[Math.min(pts.length - 1, i + 2)];
+    const c1 = [p1[0] + (p2[0] - p0[0]) / 6, p1[1] + (p2[1] - p0[1]) / 6];
+    const c2 = [p2[0] - (p3[0] - p1[0]) / 6, p2[1] - (p3[1] - p1[1]) / 6];
+    d += `C${c1[0].toFixed(1)} ${c1[1].toFixed(1)} ${c2[0].toFixed(1)} ${c2[1].toFixed(1)} ${p2[0].toFixed(1)} ${p2[1].toFixed(1)}`;
+  }
+  return d;
+}
+
+// ---------------------------------------------------------------- regularity map
+const HEAT = ['#EEF2F8', '#C9D9FF', '#8FB0FF', '#4F86FF', '#1F55E0'];
+export const heatLevel = (m: number) => (m <= 0 ? 0 : m < 10 ? 1 : m < 20 ? 2 : m < 30 ? 3 : 4);
+const MONTHS = ['janv.', 'févr.', 'mars', 'avr.', 'mai', 'juin', 'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.'];
+const WD = ['Lun', '', 'Mer', '', 'Ven', '', 'Dim'];
+
+export function Heatmap({ cols, today }: { cols: { date: Date; minutes: number; future: boolean }[][]; today: Date }) {
+  const [tip, setTip] = useState<{ x: number; y: number; text: string } | null>(null);
+  const tkey = today.toDateString();
+  const fmt = (d: Date) => `${['dim.', 'lun.', 'mar.', 'mer.', 'jeu.', 'ven.', 'sam.'][d.getDay()]} ${d.getDate()} ${MONTHS[d.getMonth()]}`;
+  return (
+    <div className="hm" onMouseLeave={() => setTip(null)}>
+      <div className="hm-months" aria-hidden="true">
+        <span />
+        {cols.map((c, i) => { const first = c.find((d) => d.date.getDate() <= 7 && d.date.getDay() === 1) ?? (i === 0 ? c[0] : null); return <span key={i}>{first && (i === 0 || first.date.getDate() <= 7) ? MONTHS[first.date.getMonth()] : ''}</span>; })}
+      </div>
+      <div className="hm-body">
+        <div className="hm-wd" aria-hidden="true">{WD.map((w, i) => <span key={i}>{w}</span>)}</div>
+        <div className="hm-grid" role="img" aria-label={`Minutes d’apprentissage par jour sur ${cols.length} semaines`}>
+          {cols.map((c, i) => (
+            <div key={i} className="hm-col">
+              {c.map((d, k) => (
+                <i key={k} className={cx(`lv${heatLevel(d.minutes)}`, d.future && 'future', d.date.toDateString() === tkey && 'today')}
+                  onMouseEnter={(e) => { if (d.future) return; const r = (e.currentTarget.parentElement!.parentElement!.parentElement!.parentElement as HTMLElement).getBoundingClientRect(); const b = e.currentTarget.getBoundingClientRect(); setTip({ x: b.left - r.left + b.width / 2, y: b.top - r.top, text: `${fmt(d.date)} · ${d.minutes ? `${d.minutes} min` : 'repos'}` }); }} />
+              ))}
+            </div>
+          ))}
         </div>
-      )}
+      </div>
+      <div className="hm-legend" aria-hidden="true">Moins {HEAT.map((c) => <i key={c} style={{ background: c }} />)} Plus</div>
+      {tip && <span className="hm-tip" style={{ left: tip.x, top: tip.y }} role="status">{tip.text}</span>}
     </div>
   );
 }
 
-export function BarChart({ data, height = 200, goal, unit = 'min', title }: { data: Point[]; height?: number; goal?: number; unit?: string; title: string }) {
-  const [ref, w] = useWidth<HTMLDivElement>();
-  const [hover, setHover] = useState<number | null>(null);
-  const pad = { l: 40, r: 16, t: 14, b: 28 };
-  const iw = w - pad.l - pad.r, ih = height - pad.t - pad.b;
-  const rawMax = Math.max(goal ?? 0, ...data.map((d) => d.value), 10);
-  const step = rawMax > 120 ? 60 : rawMax > 60 ? 30 : rawMax > 30 ? 15 : 10;
-  const max = Math.ceil(rawMax / step) * step;
-  const ticks = Array.from({ length: max / step + 1 }, (_, i) => i * step);
-  const band = iw / data.length; const bw = Math.min(24, band * 0.62);
-  const x = (i: number) => pad.l + band * i + (band - bw) / 2;
-  const y = (v: number) => pad.t + ih - (v / max) * ih;
-  const every = Math.max(1, Math.ceil(data.length / Math.max(2, Math.floor(iw / 44))));
-  const bar = (i: number, v: number) => {
-    const top = y(v), bottom = y(0), r = Math.min(4, (bottom - top) / 2, bw / 2), x0 = x(i), x1 = x0 + bw;
-    if (v <= 0) return '';
-    return `M${x0},${bottom}V${top + r}Q${x0},${top} ${x0 + r},${top}H${x1 - r}Q${x1},${top} ${x1},${top + r}V${bottom}Z`;
-  };
-  const h = hover !== null ? data[hover] : null;
-  const fmt = (v: number) => unit === 'min' && v >= 60 ? `${Math.floor(v / 60)}h${String(v % 60).padStart(2, '0')}` : `${v} ${unit}`;
+// ---------------------------------------------------------------- radar
+export function Radar({ items, max = 5, size = 300 }: { items: { label: string; sub: string; value: number }[]; max?: number; size?: number }) {
+  const n = items.length; const cx0 = size / 2, cy0 = size / 2 + 6; const R = size * 0.3;
+  const at = (i: number, r: number) => { const a = -Math.PI / 2 + (i * 2 * Math.PI) / n; return [cx0 + Math.cos(a) * r, cy0 + Math.sin(a) * r] as const; };
+  const poly = (r: (i: number) => number) => items.map((_, i) => at(i, r(i)).map((v) => v.toFixed(1)).join(',')).join(' ');
+  if (n < 3) return null;
   return (
-    <div className="chart" ref={ref}>
-      <svg width={w} height={height} role="img" aria-label={`${title} : total ${data.reduce((a, d) => a + d.value, 0)} ${unit}`} tabIndex={0}
-        onPointerLeave={() => setHover(null)} onBlur={() => setHover(null)}
-        onKeyDown={(e) => { if (e.key === 'ArrowRight') setHover((v) => Math.min(data.length - 1, (v ?? -1) + 1)); if (e.key === 'ArrowLeft') setHover((v) => Math.max(0, (v ?? data.length) - 1)); if (e.key === 'Escape') setHover(null); }}>
-        {ticks.map((t) => (
-          <g key={t}><line x1={pad.l} x2={w - pad.r} y1={y(t)} y2={y(t)} className="grid" /><text x={pad.l - 8} y={y(t)} dy="0.32em" textAnchor="end" className="tick">{t}</text></g>
-        ))}
-        {goal ? <g><line x1={pad.l} x2={w - pad.r} y1={y(goal)} y2={y(goal)} className="goal" /><text x={w - pad.r} y={y(goal) - 5} textAnchor="end" className="goal-label">Objectif {goal} min</text></g> : null}
-        {data.map((d, i) => (
-          <g key={i} onPointerEnter={() => setHover(i)}>
-            <rect x={pad.l + band * i} y={pad.t} width={band} height={ih} fill="transparent" />
-            <path d={bar(i, d.value)} className={cx('bar-mark', hover === i && 'hot', !!goal && d.value >= goal && 'met')} />
-            {(i % every === 0 || i === data.length - 1) && (i === data.length - 1 || data.length - 1 - i >= every * 0.6) && <text x={x(i) + bw / 2} y={height - 8} textAnchor="middle" className="tick">{d.short}</text>}
+    <svg className="radar" viewBox={`0 0 ${size} ${size + 12}`} role="img" aria-label={items.map((x) => `${x.label} : ${x.sub}`).join(', ')}>
+      {[1, 2, 3, 4, 5].filter((l) => l <= max).map((l) => <polygon key={l} points={poly(() => (R * l) / max)} className={cx('radar-ring', l === max && 'outer')} />)}
+      {items.map((_, i) => { const [x, y] = at(i, R); return <line key={i} x1={cx0} y1={cy0} x2={x} y2={y} className="radar-axis" />; })}
+      <polygon points={poly((i) => Math.max(0.35, items[i].value) * (R / max))} className="radar-shape" />
+      {items.map((it, i) => { const [x, y] = at(i, Math.max(0.35, it.value) * (R / max)); return <circle key={i} cx={x} cy={y} r="4.5" className="radar-dot" />; })}
+      {items.map((it, i) => {
+        const [x, y] = at(i, R + 26); const anchor = Math.abs(x - cx0) < 8 ? 'middle' : x > cx0 ? 'start' : 'end';
+        const dy = y < cy0 - R * 0.5 ? -8 : y > cy0 + R * 0.5 ? 10 : 0;
+        return (
+          <text key={i} x={x + (anchor === 'start' ? -6 : anchor === 'end' ? 6 : 0)} y={y + dy} textAnchor={anchor} className="radar-label">
+            <tspan x={x + (anchor === 'start' ? -6 : anchor === 'end' ? 6 : 0)} className="radar-name">{it.label}</tspan>
+            <tspan x={x + (anchor === 'start' ? -6 : anchor === 'end' ? 6 : 0)} dy="15" className="radar-sub">{it.sub}</tspan>
+          </text>
+        );
+      })}
+    </svg>
+  );
+}
+
+// ---------------------------------------------------------------- learning path
+export interface PathNode { label: string; state: 'done' | 'current' | 'todo'; pct?: number }
+
+/** The course as a winding path: finished modules, the current one with its progress, the goal flag. */
+export function PathTrack({ nodes, dark, beads = 0, beadsDone = 0 }: { nodes: PathNode[]; dark?: boolean; beads?: number; beadsDone?: number }) {
+  const id = `pt${useId().replace(/[^a-zA-Z0-9]/g, '')}`;
+  const W = 620, H = 128, pad = 34;
+  const n = nodes.length;
+  const pts = nodes.map((_, i) => [pad + (i * (W - pad * 2)) / Math.max(1, n - 1), 50 + Math.sin(i * 1.15 + 0.4) * 16] as const);
+  const cur = Math.max(0, nodes.findIndex((x) => x.state === 'current'));
+  const doneUpTo = nodes.every((x) => x.state === 'done') ? n - 1 : cur;
+  const full = smoothPath(pts);
+  const donePath = smoothPath(pts.slice(0, doneUpTo + 1));
+  // beads: lessons of the current module, between the current node and the next
+  const beadPts = cur < n - 1 && beads > 0 ? Array.from({ length: beads }, (_, k) => {
+    const t = (k + 1) / (beads + 1); const a = pts[cur], b = pts[cur + 1];
+    return [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t + Math.sin(t * Math.PI) * (cur % 2 ? -6 : 6)] as const;
+  }) : [];
+  return (
+    <svg className={cx('path-track', dark && 'is-dark')} viewBox={`0 0 ${W} ${H}`} role="img"
+      aria-label={nodes.map((x, i) => `Module ${i + 1}, ${x.label} : ${x.state === 'done' ? 'terminé' : x.state === 'current' ? `en cours (${x.pct ?? 0} %)` : 'à venir'}`).join(' ; ')}>
+      <defs>
+        <radialGradient id={`${id}glow`}><stop offset="0" stopColor="#6E97FF" stopOpacity=".7" /><stop offset="1" stopColor="#6E97FF" stopOpacity="0" /></radialGradient>
+        <linearGradient id={`${id}done`} x1="0" x2="1"><stop offset="0" stopColor="#46D49D" /><stop offset="1" stopColor="#16A472" /></linearGradient>
+      </defs>
+      <path d={full} className="pt-rest" />
+      {doneUpTo > 0 && <path d={donePath} className="pt-done" stroke={`url(#${id}done)`} />}
+      {beadPts.map(([x, y], k) => <circle key={k} cx={x} cy={y} r="3.6" className={cx('pt-bead', k < beadsDone && 'on')} />)}
+      {pts.map(([x, y], i) => {
+        const node = nodes[i]; const last = i === n - 1;
+        if (node.state === 'done') return (
+          <g key={i} transform={`translate(${x} ${y})`}><circle r="13" className="pt-node-done" /><path d="m-5 .5 3.4 3.4L5.6-4" className="pt-check" /></g>
+        );
+        if (node.state === 'current') {
+          const r = 15, c = 2 * Math.PI * r, p = Math.max(0.04, (node.pct ?? 0) / 100);
+          return (
+            <g key={i} transform={`translate(${x} ${y})`}>
+              <circle r="30" fill={`url(#${id}glow)`} />
+              <circle r={r} className="pt-ring-track" />
+              <circle r={r} className="pt-ring" strokeDasharray={c} strokeDashoffset={c * (1 - p)} transform="rotate(-90)" />
+              <circle r="9" className="pt-node-cur" />
+            </g>
+          );
+        }
+        return (
+          <g key={i} transform={`translate(${x} ${y})`}>
+            <circle r={last ? 14 : 11} className="pt-node-todo" />
+            {last && <path d="M-4 6V-6.5M-4-6h8.5l-2 3 2 3H-4" className="pt-flag" />}
           </g>
-        ))}
-      </svg>
-      {h && hover !== null && (
-        <div className="tooltip" style={{ left: Math.min(w - 150, Math.max(0, x(hover) - 60)), top: Math.max(0, y(h.value) - 62) }} role="status">
-          <span>{h.label}</span><strong>{fmt(h.value)}</strong>
-        </div>
-      )}
-    </div>
+        );
+      })}
+      {pts.map(([x, y], i) => <text key={`t${i}`} x={x} y={y + 36} textAnchor="middle" className={cx('pt-label', nodes[i].state === 'current' && 'is-current')}>{nodes[i].label}</text>)}
+    </svg>
   );
 }
 
-/** Accessible table alternative for any chart */
-export function DataTable({ caption, rows, unit }: { caption: string; rows: Point[]; unit: string }) {
-  return (
-    <div className="table-wrap">
-      <table className="data-table">
-        <caption className="sr-only">{caption}</caption>
-        <thead><tr><th scope="col">Date</th><th scope="col">Valeur</th></tr></thead>
-        <tbody>{rows.map((r, i) => <tr key={i}><td>{r.label}</td><td className="num">{r.value} {unit}</td></tr>)}</tbody>
-      </table>
-    </div>
-  );
+/** Small horizontal comparison bar (per course, per skill). */
+export function HBar({ value, max, tone = 'blue', label }: { value: number; max: number; tone?: 'blue' | 'soft' | 'mint' | 'flame'; label?: string }) {
+  return <span className={cx('hbar', `hbar-${tone}`)} role={label ? 'img' : undefined} aria-label={label}><i style={{ width: `${max ? Math.min(100, (value / max) * 100) : 0}%` }} /></span>;
 }
 
-export function useChartToggle() {
-  const [table, setTable] = useState(false);
-  const button = <button type="button" className="link-inline small" aria-pressed={table} onClick={() => setTable(!table)}>{table ? 'Voir le graphique' : 'Voir les données'}</button>;
-  return useMemo(() => ({ table, button }), [table]); // eslint-disable-line react-hooks/exhaustive-deps
-}
+export const Check = ({ on }: { on: boolean }) => <span className={cx('tick', on && 'on')} aria-hidden="true">{on && <Icon name="check" size={13} />}</span>;

@@ -30,15 +30,15 @@ export function NewCourseDialog() {
   const add = (c: Course) => {
     store.enroll(c.id);
     overlays.closeNewCourse();
-    toast(`« ${c.title} » ajouté à Mes cours`, 'success');
+    toast(`« ${c.title} » ajouté à Mes cours`, 'success');
     navigate({ page: 'course', courseId: c.id }); // Léa presents it on its page
   };
 
   return (
     <Dialog open={o.newCourse} size="lg" className="nc" title="Ajouter un cours" onClose={overlays.closeNewCourse}
-      subtitle="Choisis un nouveau cours : il rejoint « Mes cours » et Léa te le présente.">
+      subtitle="Choisis un nouveau cours : il rejoint « Mes cours » et Léa te le présente.">
       {available.length === 0 ? (
-        <Empty icon="check" title="Tu suis déjà tous les cours du catalogue">Retrouve-les dans « Mes cours ».</Empty>
+        <Empty icon="check" title="Tu suis déjà tous les cours du catalogue">Retrouve-les dans « Mes cours ».</Empty>
       ) : (
         <>
           <div className="nc-tools">
@@ -56,7 +56,7 @@ export function NewCourseDialog() {
             </div>
           </div>
           {list.length === 0
-            ? <Empty title={`Aucun cours pour « ${q} »`}>Essaie un autre mot ou une autre catégorie.</Empty>
+            ? <Empty title={`Aucun cours pour « ${q} »`}>Essaie un autre mot ou une autre catégorie.</Empty>
             : (
               <ul className="nc-list">
                 {list.map((c) => (

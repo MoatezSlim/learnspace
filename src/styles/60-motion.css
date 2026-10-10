@@ -1,0 +1,13 @@
+/* ------------------------------------------------------------- reduced motion (settings: Réduites, Aucune, or the system setting)
+   Entrances, floating and shining effects stop; Léa's rig is handled in leaRig.ts (no head motion,
+   no blinking with « Aucune »). Dialogs are rendered inside .app, so they follow the same rules. */
+.reduce-motion *, .reduce-motion *::before, .reduce-motion *::after {
+  animation-duration: .01ms !important; animation-iteration-count: 1 !important; animation-delay: 0s !important;
+  transition-duration: .01ms !important; transition-delay: 0s !important; scroll-behavior: auto !important;
+}
+/* the typing dots and live indicators stay readable without moving */
+.reduce-motion .typing i { opacity: .7; transform: none; }
+.reduce-motion .caret { opacity: .55; }
+@media (prefers-reduced-motion: reduce) {
+  .boot * { animation: none !important; }
+}

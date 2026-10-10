@@ -19,7 +19,7 @@ export const LINES = {
   incorrectFirst: 'Pas tout à fait. Regardons un indice, puis réessayons ensemble.',
   incorrectReveal: 'Ce n’est pas grave. Voici la bonne réponse et son explication, puis on continue.',
   completePass: 'Bravo ! Tu viens de terminer cette leçon. Ta progression a été mise à jour.',
-  completeBadge: (title: string) => `Bravo ! Tu viens de terminer cette leçon. Ta progression a été mise à jour. Et tu débloques le badge « ${title} ».`,
+  completeBadge: (title: string) => `Bravo ! Tu viens de terminer cette leçon. Ta progression a été mise à jour. Et tu débloques le badge « ${title} ».`,
   completeFail: (pct: number) => `Tu y es presque. Il faut ${pct} % pour valider le module : revois les points clés, puis retente l’évaluation.`,
   hint: (q: Question) => `Voici un indice : ${q.hint}`,
   explainOk: (q: Question) => `Bonne réponse ! ${q.explanation}`,
@@ -31,10 +31,20 @@ export const LINES = {
   allDone: 'Tu as terminé tout le contenu disponible pour le moment. Bravo !',
   voice: 'Je ne parle pas à voix haute : je t’écris ici, dans ma bulle, et mon visage te montre ce que j’en pense.',
   who: 'Je suis Léa, l’assistante virtuelle de LearnSpace. Je t’aide à comprendre tes leçons, à réviser et à choisir ta prochaine étape, en m’appuyant sur tes cours et ta progression.',
-  mobile: 'LearnSpace s’adapte à ton téléphone : la même interface que sur ordinateur, le menu en haut à gauche, et la même progression sur tous tes appareils quand la synchronisation est active.',
+  mobile: 'LearnSpace s’adapte à ton téléphone : les mêmes pages, une barre d’onglets en bas avec moi au centre, et la même progression sur tous tes appareils quand la synchronisation est active.',
   unknown: 'Je n’ai pas de réponse préparée pour cette question en mode démo. Je peux te recommander ta prochaine leçon, résumer ton module, proposer une révision ou faire le point sur ta progression.',
   unknownLesson: 'Je n’ai pas de réponse préparée pour cette question en mode démo. Sur cette leçon, je peux te donner un indice, expliquer la correction ou résumer les points clés.',
   progressFail: 'Je n’arrive pas à lire ta progression pour le moment.',
+};
+
+/** Lines of the demanding coaching style (« Exigeante »): fewer compliments, more precise corrections. */
+export const STRICT = {
+  intro: 'Écoute, puis réponds sans regarder la transcription. Vise trois bonnes réponses du premier coup.',
+  assessment: (pct: number) => `Évaluation du module : ${pct} % du premier coup, pas moins. Concentration.`,
+  correct: ['Correct.', 'Juste. Suivante.', 'Bonne réponse. Garde ce rythme.'],
+  incorrectFirst: 'Non. Relis l’indice et recommence.',
+  incorrectReveal: 'Voici la correction. Note-la : elle reviendra à l’évaluation.',
+  complete: (score: number, total: number) => score === total ? `Leçon validée : ${score}/${total}. Parfait, continue.` : `Leçon validée : ${score}/${total}. Vise ${total}/${total} la prochaine fois.`,
 };
 
 /** FNV-1a hash as 8 hex digits. */

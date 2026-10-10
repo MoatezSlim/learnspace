@@ -1,58 +1,98 @@
-import React, { useEffect, useRef, useState, useSyncExternalStore } from 'react';
+import React, { useEffect, useId, useRef, useState, useSyncExternalStore } from 'react';
+import { createPortal } from 'react-dom';
 import { Icon, IconName, Flag } from './icons';
 import type { Course } from '../types';
 
 export const cx = (...a: (string | false | null | undefined)[]) => a.filter(Boolean).join(' ');
 
-type BtnProps = React.ButtonHTMLAttributes<HTMLButtonElement> & { variant?: 'primary' | 'secondary' | 'ghost' | 'light' | 'danger'; size?: 'sm' | 'md' | 'lg'; icon?: IconName; iconRight?: IconName; block?: boolean };
-export function Button({ variant = 'primary', size = 'md', icon, iconRight, block, className, children, ...rest }: BtnProps) {
+// ---------------------------------------------------------------- buttons
+type Variant = 'blue' | 'white' | 'ghost' | 'line' | 'navy' | 'soft' | 'danger' | 'primary' | 'secondary' | 'light';
+const VARIANT: Record<Variant, string> = { blue: 'blue', primary: 'blue', white: 'white', light: 'white', ghost: 'ghost', line: 'line', secondary: 'line', navy: 'navy', soft: 'soft', danger: 'danger' };
+type BtnProps = React.ButtonHTMLAttributes<HTMLButtonElement> & {
+  variant?: Variant; size?: 'sm' | 'md' | 'lg'; icon?: IconName; iconRight?: IconName;
+  /** trailing round arrow (or another icon), as in the hero buttons */
+  go?: boolean | IconName; block?: boolean;
+};
+export function Button({ variant = 'blue', size = 'md', icon, iconRight, go, block, className, children, ...rest }: BtnProps) {
   return (
-    <button type="button" {...rest} className={cx('btn', `btn-${variant}`, `btn-${size}`, block && 'btn-block', className)}>
+    <button type="button" {...rest} className={cx('btn', `btn-${VARIANT[variant]}`, `btn-${size}`, go && 'has-go', block && 'btn-block', className)}>
       {icon && <Icon name={icon} size={size === 'sm' ? 16 : 18} />}
-      {children && <span>{children}</span>}
-      {iconRight && <Icon name={iconRight} size={size === 'sm' ? 16 : 18} />}
+      {children !== undefined && children !== null && <span className="btn-label">{children}</span>}
+      {iconRight && <Icon name={iconRight} size={size === 'sm' ? 15 : 17} />}
+      {go && <span className="go" aria-hidden="true"><Icon name={go === true ? 'arrowRight' : go} size={size === 'sm' ? 14 : 16} /></span>}
     </button>
   );
 }
 
-export function IconButton({ icon, label, className, badge, ...rest }: React.ButtonHTMLAttributes<HTMLButtonElement> & { icon: IconName; label: string; badge?: number }) {
+export function IconButton({ icon, label, className, badge, dot, size = 20, ...rest }: React.ButtonHTMLAttributes<HTMLButtonElement> & { icon: IconName; label: string; badge?: number; dot?: boolean; size?: number }) {
   return (
     <button type="button" aria-label={label} title={label} {...rest} className={cx('icon-btn', className)}>
-      <Icon name={icon} size={20} />
+      <Icon name={icon} size={size} />
       {!!badge && <span className="icon-btn-badge" aria-hidden="true">{badge > 9 ? '9+' : badge}</span>}
+      {dot && <span className="icon-btn-dot" aria-hidden="true" />}
     </button>
   );
 }
 
-export function LinkButton({ children, onClick, className, ...rest }: React.ButtonHTMLAttributes<HTMLButtonElement>) {
-  return <button type="button" className={cx('link', className)} onClick={onClick} {...rest}>{children}<Icon name="arrowRight" size={14} /></button>;
+export function LinkButton({ children, onClick, className, icon = 'arrowRight', ...rest }: React.ButtonHTMLAttributes<HTMLButtonElement> & { icon?: IconName | null }) {
+  return <button type="button" className={cx('link', className)} onClick={onClick} {...rest}>{children}{icon && <Icon name={icon} size={14} />}</button>;
 }
 
-export function ProgressBar({ value, label, tone = 'blue', size = 'md', className }: { value: number; label?: string; tone?: 'blue' | 'light' | 'green'; size?: 'sm' | 'md'; className?: string }) {
+export const Kbd = ({ children }: { children: React.ReactNode }) => <kbd className="kbd">{children}</kbd>;
+
+// ---------------------------------------------------------------- progress
+export function ProgressBar({ value, label, tone = 'blue', size = 'md', className }: { value: number; label?: string; tone?: 'blue' | 'light' | 'green' | 'mint' | 'flame' | 'gold' | 'soft'; size?: 'xs' | 'sm' | 'md'; className?: string }) {
   const v = Math.max(0, Math.min(100, value));
   return (
-    <div className={cx('bar', `bar-${tone}`, `bar-${size}`, className)} role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(v)} aria-label={label}>
+    <div className={cx('bar', `bar-${tone === 'green' ? 'mint' : tone}`, `bar-${size}`, className)} role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(v)} aria-label={label}>
       <span style={{ width: `${v}%` }} />
     </div>
   );
 }
 
-export function Ring({ value, size = 64, stroke = 7, label, sub, track = 'var(--ring-track)', color = 'var(--blue)', children }: { value: number; size?: number; stroke?: number; label?: string; sub?: string; track?: string; color?: string; children?: React.ReactNode }) {
-  const r = (size - stroke) / 2; const c = 2 * Math.PI * r; const v = Math.max(0, Math.min(100, value));
+/** Bars split in segments (one per module / lesson / level). */
+export function Segments({ values, label, className, tone = 'blue' }: { values: number[]; label?: string; className?: string; tone?: 'blue' | 'mint' }) {
   return (
-    <div className="ring" style={{ width: size, height: size }} role="img" aria-label={label ?? `${Math.round(v)} %`}>
-      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} aria-hidden="true">
-        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={track} strokeWidth={stroke} />
-        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={color} strokeWidth={stroke} strokeLinecap="round"
-          strokeDasharray={c} strokeDashoffset={c * (1 - v / 100)} transform={`rotate(-90 ${size / 2} ${size / 2})`} className="ring-arc" />
-      </svg>
-      <div className="ring-center">{children ?? <><strong>{Math.round(v)}%</strong>{sub && <small>{sub}</small>}</>}</div>
+    <div className={cx('segs', `segs-${tone}`, className)} role={label ? 'img' : undefined} aria-label={label} aria-hidden={label ? undefined : true}>
+      {values.map((v, i) => <span key={i} className={cx(v >= 1 && 'full')}><i style={{ width: `${Math.max(0, Math.min(1, v)) * 100}%` }} /></span>)}
     </div>
   );
 }
 
-export function Pill({ tone = 'neutral', icon, children }: { tone?: 'neutral' | 'green' | 'blue' | 'amber' | 'red' | 'violet'; icon?: IconName; children: React.ReactNode }) {
-  return <span className={cx('pill', `pill-${tone}`)}>{icon && <Icon name={icon} size={14} />}{children}</span>;
+export function Ring({ value, size = 64, stroke = 7, label, sub, track = 'var(--ring-track)', color = 'var(--blue)', children, className }: { value: number; size?: number; stroke?: number; label?: string; sub?: string; track?: string; color?: string; children?: React.ReactNode; className?: string }) {
+  const r = (size - stroke) / 2; const c = 2 * Math.PI * r; const v = Math.max(0, Math.min(100, value));
+  return (
+    <div className={cx('ring', className)} style={{ width: size, height: size }} role="img" aria-label={label ?? `${Math.round(v)} %`}>
+      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} aria-hidden="true">
+        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={track} strokeWidth={stroke} />
+        {v > 0 && <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={color} strokeWidth={stroke} strokeLinecap="round"
+          strokeDasharray={c} strokeDashoffset={c * (1 - v / 100)} transform={`rotate(-90 ${size / 2} ${size / 2})`} className="ring-arc" />}
+      </svg>
+      <div className="ring-center" aria-hidden="true">{children ?? <><strong>{Math.round(v)} %</strong>{sub && <small>{sub}</small>}</>}</div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------- small pieces
+export function Pill({ tone = 'neutral', icon, children, className }: { tone?: 'neutral' | 'green' | 'mint' | 'blue' | 'amber' | 'gold' | 'red' | 'coral' | 'violet' | 'flame' | 'navy'; icon?: IconName; children: React.ReactNode; className?: string }) {
+  const t = tone === 'green' ? 'mint' : tone === 'amber' ? 'gold' : tone === 'red' ? 'coral' : tone;
+  return <span className={cx('pill', `pill-${t}`, className)}>{icon && <Icon name={icon} size={13} />}{children}</span>;
+}
+
+export function Seg<T extends string | number>({ options, value, onChange, label, className, size = 'md' }: { options: { id: T; label: React.ReactNode }[]; value: T; onChange: (v: T) => void; label: string; className?: string; size?: 'sm' | 'md' }) {
+  return (
+    <div className={cx('seg', `seg-${size}`, className)} role="group" aria-label={label}>
+      {options.map((o) => <button key={String(o.id)} type="button" className={cx(value === o.id && 'on')} aria-pressed={value === o.id} onClick={() => onChange(o.id)}>{o.label}</button>)}
+    </div>
+  );
+}
+
+export function Toggle({ checked, onChange, label, id }: { checked: boolean; onChange: (v: boolean) => void; label: string; id?: string }) {
+  return (
+    <button type="button" id={id} role="switch" aria-checked={checked} aria-label={label} className={cx('toggle', checked && 'on')} onClick={() => onChange(!checked)}>
+      <i aria-hidden="true" />
+    </button>
+  );
 }
 
 export function Skeleton({ h = 16, w = '100%', r = 8 }: { h?: number; w?: number | string; r?: number }) {
@@ -70,7 +110,25 @@ export function Empty({ icon = 'search', title, children, action }: { icon?: Ico
   );
 }
 
-/** In-page confirmation dialog (the viewer blocks window.confirm). */
+/** A section title with an optional count and a link or control on the right. */
+export function SectionHead({ title, count, children, as = 'h2', id }: { title: React.ReactNode; count?: React.ReactNode; children?: React.ReactNode; as?: 'h2' | 'h3'; id?: string }) {
+  const H = as;
+  return (
+    <div className="sec-head">
+      <H id={id}>{title}{count !== undefined && <span className="sec-count">{count}</span>}</H>
+      {children && <div className="sec-side">{children}</div>}
+    </div>
+  );
+}
+
+/** Text with **bold** parts (used for Léa's lines and messages). */
+export function Rich({ text }: { text: string }) {
+  const parts = text.split(/(\*\*[^*]+\*\*)/g).filter(Boolean);
+  return <>{parts.map((p, i) => (p.startsWith('**') && p.endsWith('**') ? <strong key={i}>{p.slice(2, -2)}</strong> : <React.Fragment key={i}>{p}</React.Fragment>))}</>;
+}
+
+// ---------------------------------------------------------------- dialog
+/** In-page dialog (the viewer blocks window.confirm). */
 export function Dialog({ open, title, children, onClose, actions, size = 'md', className, subtitle }: {
   open: boolean; title: string; children: React.ReactNode; onClose: () => void; actions?: React.ReactNode; size?: 'md' | 'lg'; className?: string; subtitle?: React.ReactNode;
 }) {
@@ -84,7 +142,6 @@ export function Dialog({ open, title, children, onClose, actions, size = 'md', c
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') { e.stopPropagation(); close.current(); return; }
       if (e.key !== 'Tab') return;
-      // keep the keyboard focus inside the dialog
       const list = focusables(); if (!list.length) return;
       const i = list.indexOf(document.activeElement as HTMLElement);
       if (e.shiftKey && (i <= 0)) { e.preventDefault(); list[list.length - 1].focus(); }
@@ -94,17 +151,20 @@ export function Dialog({ open, title, children, onClose, actions, size = 'md', c
     return () => { window.removeEventListener('keydown', onKey); if (prev && document.contains(prev)) prev.focus(); };
   }, [open]);
   if (!open) return null;
-  return (
+  // rendered at the app's root: the page column is a size container, which would otherwise become the
+  // dialog's frame instead of the window
+  return createPortal(
     <div className="dialog-backdrop" onMouseDown={(e) => { if (e.target === e.currentTarget) close.current(); }}>
       <div className={cx('dialog', `dialog-${size}`, className)} role="dialog" aria-modal="true" aria-labelledby="dialog-title" ref={ref}>
         <div className="dialog-head">
           <div><h2 id="dialog-title">{title}</h2>{subtitle && <p className="muted dialog-sub">{subtitle}</p>}</div>
-          {size === 'lg' && <button type="button" className="dialog-x" aria-label="Fermer" onClick={onClose}><Icon name="x" size={18} /></button>}
+          <button type="button" className="dialog-x" aria-label="Fermer" onClick={onClose}><Icon name="x" size={18} /></button>
         </div>
         <div className="dialog-body">{children}</div>
         {actions && <div className="dialog-actions">{actions}</div>}
       </div>
-    </div>
+    </div>,
+    document.querySelector('.app') ?? document.body,
   );
 }
 
@@ -119,88 +179,96 @@ export function Toasts() {
   const list = useSyncExternalStore((l) => { tl.add(l); return () => tl.delete(l); }, () => toasts);
   return (
     <div className="toasts" role="status" aria-live="polite">
-      {list.map((t) => <div key={t.id} className={cx('toast', `toast-${t.tone}`)}><Icon name={t.tone === 'badge' ? 'medal' : t.tone === 'success' ? 'check' : 'info'} size={18} />{t.text}</div>)}
+      {list.map((t) => <div key={t.id} className={cx('toast', `toast-${t.tone}`)}><span className="toast-ic"><Icon name={t.tone === 'badge' ? 'medal' : t.tone === 'success' ? 'check' : 'info'} size={16} /></span>{t.text}</div>)}
     </div>
   );
 }
 
-// ---------------------------------------------------------------- course cover
-const MOTIF_ICON: Record<string, IconName> = { pitch: 'chat', negotiation: 'briefcase', code: 'monitor', data: 'progress', focus: 'clock', climate: 'flask', painting: 'palette', cinema: 'video', 'skyline-ru': 'globe' };
-
-export function CourseCover({ course, className, showFlag = true }: { course: Course; className?: string; showFlag?: boolean }) {
-  const [failed, setFailed] = useState(false);
-  const cover = course.cover;
-  return (
-    <div className={cx('cover', className)}>
-      {cover.kind === 'photo' && !failed
-        ? <img src={cover.src} alt="" loading="lazy" style={{ objectPosition: cover.position }} onError={() => setFailed(true)} />
-        : <ArtCover motif={cover.kind === 'art' ? cover.motif : 'skyline-ru'} tone={cover.kind === 'art' ? cover.tone : '#3978E5'} />}
-      {showFlag && course.flag && <span className="cover-flag"><Flag code={course.flag} size={30} /></span>}
-    </div>
-  );
-}
-
-const SKIES: Record<string, [string, string]> = {
-  'skyline-fr': ['#F5D3C2', '#EEF2FA'], 'skyline-es': ['#F9D49E', '#F8F1E7'], 'skyline-de': ['#CFDDF3', '#F1F5FB'],
-  'skyline-it': ['#F7C9A8', '#F9F0E6'], 'skyline-ru': ['#F2CFC7', '#EDF1F8'],
+// ---------------------------------------------------------------- course covers
+/** Colours, greeting and symbol of each course cover. */
+export const COVER: Record<string, { c1: string; c2: string; word?: string; glyph?: IconName }> = {
+  'en-b1': { c1: '#5B8DEF', c2: '#1F4FCB', word: 'Hello' },
+  'es-a2': { c1: '#FFA352', c2: '#E2622B', word: '¡Hola!' },
+  'fr-b1': { c1: '#5B93FF', c2: '#2554D6', word: 'Bonjour' },
+  'de-a1': { c1: '#F7C948', c2: '#D99410', word: 'Hallo' },
+  'it-b1': { c1: '#33B887', c2: '#13785A', word: 'Ciao' },
+  'ru-c1': { c1: '#F27B70', c2: '#B83A44', word: 'Привет' },
+  'biz-pitch': { c1: '#7AA0FF', c2: '#3456E0', glyph: 'chat' },
+  'biz-nego': { c1: '#3CBE8F', c2: '#16805E', glyph: 'briefcase' },
+  'info-python': { c1: '#2C4270', c2: '#0B1A33', glyph: 'monitor' },
+  'info-sql': { c1: '#5B93FF', c2: '#1F4FCB', glyph: 'progress' },
+  'perso-focus': { c1: '#FFB65E', c2: '#EA7A22', glyph: 'clock' },
+  'sci-climat': { c1: '#39C6A3', c2: '#14806B', glyph: 'flask' },
+  'art-tableau': { c1: '#9488F7', c2: '#5B4BD6', glyph: 'palette' },
+  'art-cinema': { c1: '#324472', c2: '#0E1A36', glyph: 'video' },
 };
+export const coverOf = (c: Course) => COVER[c.id] ?? { c1: '#5B8DEF', c2: '#1F4FCB', glyph: 'book' as IconName };
 
-/** Flat landmark illustrations drawn from simple shapes (used for language course covers). */
-function Landmark({ city, tone }: { city: string; tone: string }) {
-  const [top, bottom] = SKIES[city] ?? ['#DCE6F4', '#F3F6FB'];
-  const id = `sky-${city}`;
-  const spire = (cx: number, t: number, w: number) => `M${cx - w / 2} 82L${cx - w / 2} ${t + 18}Q${cx - w / 2} ${t + 4} ${cx} ${t}Q${cx + w / 2} ${t + 4} ${cx + w / 2} ${t + 18}L${cx + w / 2} 82Z`;
-  const far = [[4, 64, 14, 18], [20, 70, 10, 12], [118, 66, 12, 16], [132, 60, 10, 22], [144, 70, 14, 12]];
-  let body: React.ReactNode = null;
-  if (city === 'skyline-fr') body = <g>
-    <path d="M80 8L81.3 20L83 38L86 52L90.5 66L97 82H90Q80 67 70 82H63L69.5 66L74 52L77 38L78.7 20Z" />
-    <rect x="72.5" y="50.5" width="15" height="2.6" rx=".6" /><rect x="75.4" y="36.6" width="9.2" height="2" rx=".5" /><rect x="67.5" y="64.2" width="25" height="2.8" rx=".6" /><rect x="79.6" y="2.5" width=".8" height="6" />
-  </g>;
-  if (city === 'skyline-es') body = <g>
-    <path d={spire(80, 4, 7)} opacity=".55" />
-    <rect x="46" y="56" width="68" height="26" />
-    {[[64, 22, 8], [74, 13, 8.5], [86, 13, 8.5], [96, 22, 8], [50, 40, 6], [110, 40, 6]].map(([cx, t, w], i) => <g key={i}><path d={spire(cx, t, w)} /><circle cx={cx} cy={t - 1.6} r="1.7" /></g>)}
-    {[52, 60, 100, 108].map((x) => <rect key={x} x={x} y="62" width="3" height="8" rx="1.5" fill={tone} opacity=".75" />)}
-    <path d="M74 82V68Q80 60 86 68V82Z" fill={tone} opacity=".6" />
-  </g>;
-  if (city === 'skyline-de') body = <g>
-    <rect x="28" y="62" width="16" height="20" /><rect x="116" y="62" width="16" height="20" />
-    <rect x="42" y="77" width="76" height="5" />
-    {[46, 57, 68, 88, 99, 110].map((x) => <rect key={x} x={x - 2} y="54" width="4.4" height="24" />)}
-    <rect x="40" y="47" width="80" height="8" rx="1" /><rect x="52" y="39" width="56" height="9" rx="1" />
-    <path d="M70 39q3-8 9-6q1-6 2 0q6-2 9 6z" /><rect x="79.2" y="24" width="1.6" height="10" /><circle cx="80" cy="23" r="2" />
-  </g>;
-  if (city === 'skyline-it') {
-    const arches: React.ReactNode[] = [];
-    [[72, 30, 128], [61, 30, 120], [51, 34, 100]].forEach(([y, x0, x1], row) => { for (let x = x0; x <= x1; x += 8) arches.push(<rect key={`${row}-${x}`} x={x} y={y} width="5" height="7.5" rx="2.5" fill={top} opacity=".6" />); });
-    body = <g><path d="M26 82V48Q66 35 104 39V45Q122 45 134 52V82Z" />{arches}<rect x="22" y="80" width="116" height="2" /></g>;
-  }
-  if (city === 'skyline-ru') body = <g>
-    <rect x="46" y="52" width="12" height="30" /><path d="M52 36c6 6 8 9 6 14-2 3-10 3-12 0-2-5 0-8 6-14Z" /><rect x="51.2" y="30" width="1.6" height="7" />
-    <rect x="64" y="44" width="16" height="38" /><path d="M72 22c8 8 10 12 8 18-3 4-13 4-16 0-2-6 0-10 8-18Z" /><rect x="71" y="14" width="2" height="9" />
-    <rect x="86" y="56" width="11" height="26" /><path d="M91.5 42c5 5 7 8 5 12-2 3-8 3-10 0-2-4 0-7 5-12Z" /><rect x="90.8" y="37" width="1.4" height="6" />
-    <rect x="104" y="62" width="30" height="20" /><rect x="114" y="40" width="10" height="24" /><path d="M119 28l5 12h-10Z" />
-    <path d="M72 24c6 7 8 10 6 15-2 2-10 2-12 0-2-5 0-8 6-15Z" fill={tone} opacity=".85" /><path d="M52 38c4 5 6 7 4 11-2 2-6 2-8 0-2-4 0-6 4-11Z" fill={tone} opacity=".85" />
-  </g>;
+/**
+ * Course cover: the photo for the main path, otherwise a gradient with a dotted texture, the course's
+ * symbol (or a greeting in the language taught) and its flag.
+ */
+export function CourseCover({ course, className, flag = true, word, photo = true, children, flagSize = 34 }: {
+  course: Course; className?: string; flag?: boolean; word?: string | false; photo?: boolean; children?: React.ReactNode; flagSize?: number;
+}) {
+  const [failed, setFailed] = useState(false);
+  const v = coverOf(course);
+  const isPhoto = photo && course.cover.kind === 'photo' && !failed;
+  const greeting = word === false ? null : word ?? (isPhoto ? null : v.word);
   return (
-    <svg className="art" viewBox="0 0 160 100" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
-      <defs><linearGradient id={id} x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor={top} /><stop offset="1" stopColor={bottom} /></linearGradient></defs>
-      <rect width="160" height="100" fill={`url(#${id})`} />
-      <circle cx="128" cy="26" r="9" fill="#fff" opacity=".55" />
-      <g fill="#14243B" opacity=".16">{far.map(([x, y, w, h], i) => <rect key={i} x={x} y={y} width={w} height={h} />)}</g>
-      <g fill="#14243B">{body}<rect x="0" y="82" width="160" height="18" /></g>
-      <rect x="0" y="82" width="160" height="1.2" fill={tone} opacity=".5" />
-    </svg>
+    <div className={cx('cv', isPhoto && 'cv-photo', v.glyph && !isPhoto && 'cv-glyph', className)} style={{ ['--c1' as string]: v.c1, ['--c2' as string]: v.c2 }}>
+      {isPhoto && course.cover.kind === 'photo'
+        ? <img src={course.cover.src} alt="" loading="lazy" style={{ objectPosition: course.cover.position }} onError={() => setFailed(true)} />
+        : <>
+          <i className="cv-dots" aria-hidden="true" />
+          {v.glyph && <span className="cv-mark" aria-hidden="true"><Icon name={v.glyph} size={120} /></span>}
+          {v.glyph && <span className="cv-tile" aria-hidden="true"><Icon name={v.glyph} size={22} /></span>}
+        </>}
+      {greeting && <span className="cv-word" aria-hidden="true" lang={course.flag === 'gb' ? 'en' : course.flag === 'ru' ? 'ru' : undefined}>{greeting}</span>}
+      {flag && course.flag && <span className="cv-flag"><Flag code={course.flag} size={flagSize} /></span>}
+      {children}
+    </div>
   );
 }
 
-function ArtCover({ motif, tone }: { motif: string; tone: string }) {
-  if (motif.startsWith('skyline-')) return <Landmark city={motif} tone={tone} />;
+/** Level tag shown on covers: three bars filled up to the level. */
+export function LevelTag({ course, className }: { course: Course; className?: string }) {
+  const n = course.level === 'debutant' ? 1 : course.level === 'intermediaire' ? 2 : 3;
+  const label = course.level === 'debutant' ? 'Débutant' : course.level === 'intermediaire' ? 'Intermédiaire' : 'Avancé';
   return (
-    <div className="art art-tile" style={{ ['--tone' as string]: tone }}>
-      <span className="art-grid" aria-hidden="true" />
-      <span className="art-icon"><Icon name={MOTIF_ICON[motif] ?? 'book'} size={34} /></span>
-    </div>
+    <span className={cx('lvl', className)}>
+      <span className="lvl-bars" aria-hidden="true">{[1, 2, 3].map((i) => <i key={i} className={cx(i <= n && 'on')} />)}</span>
+      {label}{course.cefr ? ` ${course.cefr}` : ''}
+    </span>
+  );
+}
+
+// ---------------------------------------------------------------- medals
+export type MedalTone = 'blue' | 'gold' | 'flame' | 'mint' | 'coral' | 'violet' | 'grey';
+const MEDAL_TONES: Record<MedalTone, [string, string, string]> = {
+  blue: ['#6E97FF', '#2F6BFF', '#1F4FCB'], gold: ['#FFD46B', '#F2A93B', '#D9871A'], flame: ['#FFB067', '#FF7A2F', '#E2551A'],
+  mint: ['#46D49D', '#16A472', '#0E7F57'], coral: ['#FF8C82', '#E9564F', '#C63B35'], violet: ['#A99CFF', '#6E63F2', '#5446D6'], grey: ['#E4E9F1', '#C7D0DE', '#AEB9CA'],
+};
+/** A medal (ribbon + disc + symbol), coloured for earned badges and grey when locked. */
+export function Medal({ icon, tone = 'blue', size = 64, locked }: { icon: IconName; tone?: MedalTone; size?: number; locked?: boolean }) {
+  const [a, b, c] = MEDAL_TONES[locked ? 'grey' : tone];
+  const id = `md${useId().replace(/[^a-zA-Z0-9]/g, '')}`;
+  const ribbon = locked ? '#C9D2E0' : '#2F55D4';
+  return (
+    <span className={cx('medal', locked && 'is-locked')} style={{ width: size, height: size * 1.18 }} aria-hidden="true">
+      <svg viewBox="0 0 100 118" width={size} height={size * 1.18}>
+        <defs>
+          <linearGradient id={`${id}g`} x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor={a} /><stop offset=".55" stopColor={b} /><stop offset="1" stopColor={c} /></linearGradient>
+          <linearGradient id={`${id}r`} x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor={ribbon} /><stop offset="1" stopColor={locked ? '#B5C0D2' : '#1C3FB8'} /></linearGradient>
+        </defs>
+        <path d="M24 2h18l12 30H36Z" fill={`url(#${id}r)`} />
+        <path d="M76 2H58L46 32h18Z" fill={`url(#${id}r)`} opacity=".92" />
+        <circle cx="50" cy="70" r="40" fill={`url(#${id}g)`} />
+        <circle cx="50" cy="70" r="31" fill="none" stroke="#fff" strokeOpacity={locked ? '.6' : '.55'} strokeWidth="3" />
+        <ellipse cx="38" cy="50" rx="15" ry="8" fill="#fff" opacity=".22" transform="rotate(-28 38 50)" />
+      </svg>
+      <span className="medal-ic" style={{ top: `${(70 / 118) * 100}%` }}><Icon name={icon} size={Math.round(size * 0.36)} /></span>
+    </span>
   );
 }
 
@@ -209,8 +277,20 @@ export function useMediaQuery(q: string) {
   const [m, setM] = useState(get);
   useEffect(() => {
     const mq = window.matchMedia(q); const on = () => setM(mq.matches);
+    on();
     mq.addEventListener ? mq.addEventListener('change', on) : mq.addListener(on);
     return () => { mq.removeEventListener ? mq.removeEventListener('change', on) : mq.removeListener(on); };
   }, [q]);
   return m;
+}
+
+/** Downloads a text file made in the browser (exports, receipts, programmes). */
+export function downloadText(name: string, text: string, type = 'text/plain;charset=utf-8') {
+  try {
+    const blob = new Blob([text], { type });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove();
+    window.setTimeout(() => URL.revokeObjectURL(url), 2000);
+    return true;
+  } catch { return false; }
 }

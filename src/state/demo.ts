@@ -120,6 +120,13 @@ export function reanchor(s: LearnerState, now: Date = new Date()): LearnerState 
   const notifications = s.notifications.map((n) => (oldNote.has(n.id) && noteAt.has(n.id) ? { ...n, at: noteAt.get(n.id)! } : n))
     .sort((a, b) => (a.at > b.at ? -1 : a.at < b.at ? 1 : 0));
 
+  // seeded earlier conversations move with the calendar too; the learner's own ones stay as they are
+  const freshThreads = new Map((fresh.chats ?? []).map((t) => [t.id, t]));
+  const oldThreads = new Set((old.chats ?? []).map((t) => t.id));
+  const chats = s.chats ? s.chats.map((t) => (oldThreads.has(t.id) && freshThreads.has(t.id) ? freshThreads.get(t.id)! : t)) : fresh.chats;
+  // "conversation read up to" follows the seeded messages it pointed at
+  const prefs = { ...s.prefs, chatSeenAt: s.prefs.chatSeenAt && s.prefs.chatSeenAt === old.prefs.chatSeenAt ? fresh.prefs.chatSeenAt : s.prefs.chatSeenAt };
+
   // badges earned by the learner keep their date
   const achievements = { ...fresh.achievements };
   for (const [id, at] of Object.entries(s.achievements)) if (mine(at)) achievements[id] = at;
@@ -131,7 +138,7 @@ export function reanchor(s: LearnerState, now: Date = new Date()): LearnerState 
     ...fresh,
     version: 2,
     profile: s.profile,
-    prefs: s.prefs,
+    prefs,
     currentCourseId: s.currentCourseId,
     enrollments,
     attempts: s.attempts,
@@ -139,6 +146,9 @@ export function reanchor(s: LearnerState, now: Date = new Date()): LearnerState 
     activity,
     achievements,
     conversation,
+    chats,
+    reminders: s.reminders,
+    sentNotes: s.sentNotes,
     assistantQuestions: s.assistantQuestions,
     notifications,
     subscription,

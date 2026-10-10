@@ -10,7 +10,8 @@ import { Icon } from '../components/icons';
 import { cx, toast } from '../components/ui';
 
 /** Léa pops up and presents the course the learner moved to (desktop corner card, mobile sheet). */
-export function CourseGuide({ mobile }: { mobile: boolean }) {
+export function CourseGuide({ mode }: { mode: 'panel' | 'bubble' | 'mobile' }) {
+  const mobile = mode === 'mobile';
   const g = useGuide();
   const s = useLearner();
   const route = useRoute();
@@ -24,7 +25,7 @@ export function CourseGuide({ mobile }: { mobile: boolean }) {
     return () => window.removeEventListener('keydown', onKey);
   }, [course]);
 
-  if (!course) return null;
+  if (!course || mode === 'panel') return null; // with the panel, Léa presents the course in her own bubble
   const st = courseStats(s, course);
   const { hello, text } = describeCourse(course, s);
   const onCoursePage = route.page === 'course' && route.courseId === course.id;
@@ -49,14 +50,14 @@ export function CourseGuide({ mobile }: { mobile: boolean }) {
         <div className="guide-meta">
           <span><Icon name="clock" size={13} />{course.hours} h</span>
           <span><Icon name="book" size={13} />{st.total} leçons</span>
-          <span><Icon name="progress" size={13} />{LEVEL_LABEL[course.level].replace(/^Niveau /, '')}</span>
+          <span><Icon name="progress" size={13} />{LEVEL_LABEL[course.level].replace(/^Niveau /, '').replace(/^./, (c) => c.toUpperCase())}</span>
           {st.enrolled && <span className="is-progress">{st.pct} % fait</span>}
         </div>
         <div className="guide-actions">
           {onCoursePage
-            ? <button type="button" className="guide-btn" onClick={start} disabled={!target}>{st.pct >= 100 ? 'Revoir' : st.enrolled && st.done > 0 ? 'Continuer' : 'C’est parti'}<Icon name="arrowRight" size={14} /></button>
-            : <button type="button" className="guide-btn" onClick={() => { guide.close(); navigate({ page: 'course', courseId: course.id }); }}>Voir le cours<Icon name="arrowRight" size={14} /></button>}
-          {g.mode === 'open' && <button type="button" className="guide-later" onClick={() => guide.close()}>Plus tard</button>}
+            ? <button type="button" className="btn btn-blue btn-sm" onClick={start} disabled={!target}><span className="btn-label">{st.pct >= 100 ? 'Revoir' : st.enrolled && st.done > 0 ? 'Continuer' : 'C’est parti'}</span><Icon name="arrowRight" size={15} /></button>
+            : <button type="button" className="btn btn-blue btn-sm" onClick={() => { guide.close(); navigate({ page: 'course', courseId: course.id }); }}><span className="btn-label">Voir le cours</span><Icon name="arrowRight" size={15} /></button>}
+          {g.mode === 'open' && <button type="button" className="btn btn-ghost btn-sm" onClick={() => guide.close()}><span className="btn-label">Plus tard</span></button>}
         </div>
       </div>
     </aside>

@@ -4,9 +4,10 @@
 // the learner does well, sad when they do not.
 import { useSyncExternalStore } from 'react';
 import { live, kick, gesture } from './leaRig';
+import type { AssistantAction } from '../types';
 
 export type Mood =
-  | 'neutral' | 'smile' | 'happy' | 'excited' | 'delighted' | 'laugh' | 'wink' | 'content'
+  | 'neutral' | 'smile' | 'happy' | 'excited' | 'delighted' | 'laugh' | 'wink' | 'wink2' | 'content'
   | 'thinking' | 'curious' | 'surprised' | 'sad' | 'skeptical'
   // older names still used by some call sites
   | 'encouraging' | 'concerned' | 'confused';
@@ -19,7 +20,7 @@ export interface AvatarView {
   status: Status;
   mood: Mood;
   pose: Pose | null;
-  bubble: { id: string; text: string; at: number } | null;
+  bubble: { id: string; text: string; at: number; actions?: AssistantAction[] } | null;
   fx: { id: number; kind: Fx } | null;
 }
 
@@ -124,7 +125,7 @@ class AvatarController {
     window.clearTimeout(this.restTimer);
     const busy = this.timers.length > 0; // a reaction is playing: let it finish, then rest on `mood`
     if (busy) this.restMood = mood; else this.set({ mood, pose: null });
-    this.set({ bubble: { id: opts.id ?? String(token), text, at: performance.now() }, status: 'speaking' });
+    this.set({ bubble: { id: opts.id ?? String(token), text, at: performance.now(), actions: opts.actions }, status: 'speaking' });
     const ms = this.reduced ? 0 : typingMs(text);
     return new Promise<void>((resolve) => {
       window.setTimeout(() => {
@@ -158,7 +159,7 @@ class AvatarController {
   }
   private clearTimeline() { this.timers.forEach((x) => window.clearTimeout(x)); this.timers = []; }
 
-  private burst(kind: Fx, ms = 1600) {
+  burst(kind: Fx, ms = 1600) {
     if (this.reduced) return;
     window.clearTimeout(this.fxTimer);
     this.set({ fx: { id: ++this.fxId, kind } });
@@ -186,7 +187,7 @@ class AvatarController {
   hideBubble() { this.set({ bubble: null }); }
 }
 
-export interface SayOptions { mood?: Mood; speak?: boolean; id?: string; hold?: number; gestures?: boolean }
+export interface SayOptions { mood?: Mood; speak?: boolean; id?: string; hold?: number; gestures?: boolean; actions?: AssistantAction[] }
 
 export const avatar = new AvatarController();
 export const useAvatar = () => useSyncExternalStore(avatar.subscribe, avatar.get);
