@@ -1,0 +1,20 @@
+{
+  "name": "learnspace",
+  "version": "1.0.0",
+  "private": true,
+  "description": "LearnSpace — plateforme d'apprentissage avec assistante animée (prototype fonctionnel)",
+  "scripts": {
+    "build": "node build.mjs",
+    "typecheck": "tsc --noEmit",
+    "serve": "node build.mjs && python3 -m http.server 4173 --bind 127.0.0.1 -d dist-local",
+    "test": "bash tests/run.sh"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "esbuild": "^0.25.10",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "typescript": "^5.6.3"
+  }
+}

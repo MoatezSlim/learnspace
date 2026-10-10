@@ -1,0 +1,8 @@
+node_modules/
+dist/
+dist-local/
+dist-site/
+tests/.out/
+__pycache__/
+*.pyc
+.DS_Store
